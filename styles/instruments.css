@@ -1,0 +1,484 @@
+/* ============================================================
+   instruments.css — per-instrument styling
+   ============================================================ */
+
+/* -----------------------------------------------------
+   Star Finder
+   ----------------------------------------------------- */
+
+.stars-sky-container {
+  position: relative;
+  border: 1px solid rgba(0, 240, 255, 0.30);
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.08), inset 0 0 60px rgba(0, 0, 0, 0.55);
+  background: #060912;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  min-height: 240px;
+}
+
+#stars-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.compass-label {
+  position: absolute;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+.compass-label.n {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+}
+
+.compass-label.e {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+}
+
+.compass-label.s {
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--ink-dim);
+}
+
+.compass-label.w {
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+}
+
+.stars-status {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  font-size: 0.65rem;
+  color: var(--ink-dim);
+  background: rgba(6, 9, 18, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 3;
+}
+
+.stars-status .status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stars-status .status-row .label {
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.58rem;
+}
+
+.stars-status .status-row .value {
+  font-family: var(--font-mono);
+  color: var(--cyan);
+  font-size: 0.65rem;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.20);
+}
+
+.stars-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stars-search-result {
+  padding: 6px 8px;
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: var(--radius);
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  min-height: 1.4em;
+}
+
+.stars-search-result.has-result {
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.12);
+}
+
+.stars-controls .status-msg {
+  font-size: 0.7rem;
+  min-height: 1.4em;
+  color: var(--ink-dim);
+}
+
+.stars-controls .status-msg.error {
+  color: var(--red);
+  font-style: italic;
+}
+
+/* -----------------------------------------------------
+   Sound Level Meter
+   ----------------------------------------------------- */
+
+.sound-readouts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sound-readouts .readout-card.major .readout-value {
+  font-size: 2.6rem;
+  color: var(--gold);
+}
+
+.sound-readouts .readout-card.major .readout-unit {
+  font-size: 0.72rem;
+  color: var(--gold-dim);
+}
+
+.unit-toggle-row {
+  display: flex;
+  gap: 4px;
+}
+
+.unit-toggle-btn {
+  flex: 1;
+  min-height: 32px;
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  color: var(--ink-dim);
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  transition: all 0.12s;
+}
+
+.unit-toggle-btn:hover {
+  border-color: rgba(0, 240, 255, 0.45);
+  color: var(--ink);
+}
+
+.unit-toggle-btn.active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(255, 215, 0, 0.08);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.12);
+}
+
+.sound-meter {
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.chart-block {
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-fps {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--green);
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.20);
+}
+
+.chart-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.chart-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+
+.chart-fps {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--green);
+}
+
+.chart-unit {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--ink-faint);
+}
+
+.chart-hint {
+  font-size: 0.62rem;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.sound-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.sound-controls .privacy-notice {
+  order: -1;
+}
+
+/* -----------------------------------------------------
+   Vibration Analyzer
+   ----------------------------------------------------- */
+
+.vibration-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vibration-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vibration-events {
+  font-size: 0.68rem;
+  color: var(--yellow);
+  min-height: 1.2em;
+  padding: 4px 0;
+  text-shadow: 0 0 8px rgba(234, 179, 8, 0.15);
+}
+
+.vibration-events .event-item {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--yellow);
+  text-shadow: 0 0 6px rgba(234, 179, 8, 0.10);
+}
+
+.vibration-events .event-item .time {
+  color: var(--ink-faint);
+}
+
+/* -----------------------------------------------------
+   Magnetic Field Mapper
+   ----------------------------------------------------- */
+
+.magnetic-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.magnetic-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.anomaly-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: var(--radius);
+}
+
+.anomaly-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.anomaly-bar-track {
+  height: 8px;
+  background: rgba(10, 14, 26, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.anomaly-bar-fill {
+  height: 100%;
+  background: var(--cyan);
+  border-radius: 2px;
+  transition: width 0.15s ease;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.20);
+}
+
+.anomaly-bar-fill.warning {
+  background: var(--yellow);
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.20);
+}
+
+.anomaly-bar-fill.danger {
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.20);
+}
+
+.anomaly-value {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--cyan);
+  text-align: right;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+}
+
+.magnetic-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.magnetic-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.magnetic-audio-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.magnetic-audio-row .toggle-btn {
+  font-size: 0.65rem;
+  min-width: 70px;
+}
+
+.magnetic-status {
+  font-size: 0.7rem;
+  min-height: 1.2em;
+}
+
+.magnetic-status.ok { color: var(--green); text-shadow: 0 0 8px rgba(34, 197, 94, 0.15); }
+.magnetic-status.error { color: var(--red); text-shadow: 0 0 8px rgba(239, 68, 68, 0.15); }
+.magnetic-status.info { color: var(--cyan); text-shadow: 0 0 8px rgba(0, 240, 255, 0.15); }
+
+/* -----------------------------------------------------
+   Altimeter / Barometer
+   ----------------------------------------------------- */
+
+.altimeter-readouts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.altimeter-alt-detail,
+.altimeter-pressure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.altimeter-alt-detail .readout-card,
+.altimeter-pressure .readout-card {
+  flex: 1;
+  min-width: 80px;
+}
+
+.altimeter-readouts .readout-card.major .readout-value {
+  font-size: 2.2rem;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(255, 215, 0, 0.15);
+}
+
+.altimeter-readouts .readout-card.major .readout-sub {
+  font-size: 0.65rem;
+  color: var(--cyan);
+  margin-top: 2px;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+}
+
+.altimeter-pressure .readout-card .readout-sub {
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+}
+
+.trend-arrow {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+}
+
+.trend-arrow.up { color: var(--green); text-shadow: 0 0 8px rgba(34, 197, 94, 0.20); }
+.trend-arrow.down { color: var(--red); text-shadow: 0 0 8px rgba(239, 68, 68, 0.20); }
+.trend-arrow.steady { color: var(--ink-faint); }
+
+.altimeter-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.altimeter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.altimeter-status {
+  font-size: 0.7rem;
+  min-height: 1.2em;
+  flex: 1;
+}
+
+.altimeter-status.ok { color: var(--green); text-shadow: 0 0 8px rgba(34, 197, 94, 0.15); }
+.altimeter-status.warn { color: var(--yellow); text-shadow: 0 0 8px rgba(234, 179, 8, 0.15); }
+.altimeter-status.error { color: var(--red); text-shadow: 0 0 8px rgba(239, 68, 68, 0.15); }

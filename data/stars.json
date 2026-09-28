@@ -1,0 +1,378 @@
+[
+  {
+    "name": "Sirius",
+    "bayer": "α CMa",
+    "ra": 101.2969,
+    "dec": -16.7161,
+    "mag": -1.46,
+    "const": "Canis Major"
+  },
+  {
+    "name": "Canopus",
+    "bayer": "α Car",
+    "ra": 67.6667,
+    "dec": -52.7028,
+    "mag": -0.74,
+    "const": "Carina"
+  },
+  {
+    "name": "Arcturus",
+    "bayer": "α Boo",
+    "ra": 213.9153,
+    "dec": 19.1872,
+    "mag": -0.05,
+    "const": "Bootes"
+  },
+  {
+    "name": "Vega",
+    "bayer": "α Lyr",
+    "ra": 279.1167,
+    "dec": 38.7836,
+    "mag": 0.03,
+    "const": "Lyra"
+  },
+  {
+    "name": "Capella",
+    "bayer": "α Aur",
+    "ra": 79.1724,
+    "dec": 45.9983,
+    "mag": 0.08,
+    "const": "Auriga"
+  },
+  {
+    "name": "Rigel",
+    "bayer": "β Ori",
+    "ra": 78.6342,
+    "dec": -8.2033,
+    "mag": 0.18,
+    "const": "Orion"
+  },
+  {
+    "name": "Procyon",
+    "bayer": "α CMi",
+    "ra": 114.8331,
+    "dec": 5.2250,
+    "mag": 0.40,
+    "const": "Canis Minor"
+  },
+  {
+    "name": "Betelgeuse",
+    "bayer": "α Ori",
+    "ra": 88.8114,
+    "dec": 7.4144,
+    "mag": 0.42,
+    "const": "Orion"
+  },
+  {
+    "name": "Altair",
+    "bayer": "α Aql",
+    "ra": 296.6967,
+    "dec": 8.8683,
+    "mag": 0.76,
+    "const": "Aquila"
+  },
+  {
+    "name": "Aldebaran",
+    "bayer": "α Tau",
+    "ra": 68.9825,
+    "dec": 16.5097,
+    "mag": 0.87,
+    "const": "Taurus"
+  },
+  {
+    "name": "Antares",
+    "bayer": "α Sco",
+    "ra": 247.3494,
+    "dec": -26.4320,
+    "mag": 0.96,
+    "const": "Scorpius"
+  },
+  {
+    "name": "Spica",
+    "bayer": "α Vir",
+    "ra": 201.2989,
+    "dec": -11.1614,
+    "mag": 0.98,
+    "const": "Virgo"
+  },
+  {
+    "name": "Pollux",
+    "bayer": "β Gem",
+    "ra": 116.3294,
+    "dec": 28.0262,
+    "mag": 1.14,
+    "const": "Gemini"
+  },
+  {
+    "name": "Fomalhaut",
+    "bayer": "α PsA",
+    "ra": 344.4182,
+    "dec": -29.6182,
+    "mag": 1.16,
+    "const": "Piscis Austrinus"
+  },
+  {
+    "name": "Deneb",
+    "bayer": "α Cyg",
+    "ra": 310.3570,
+    "dec": 45.2808,
+    "mag": 1.25,
+    "const": "Cygnus"
+  },
+  {
+    "name": "Regulus",
+    "bayer": "α Leo",
+    "ra": 152.0931,
+    "dec": 11.9672,
+    "mag": 1.36,
+    "const": "Leo"
+  },
+  {
+    "name": "Adhara",
+    "bayer": "ε CMa",
+    "ra": 104.6397,
+    "dec": -28.9656,
+    "mag": 1.50,
+    "const": "Canis Major"
+  },
+  {
+    "name": "Shaula",
+    "bayer": "λ Sco",
+    "ra": 265.6509,
+    "dec": -37.0792,
+    "mag": 1.62,
+    "const": "Scorpius"
+  },
+  {
+    "name": "Castor",
+    "bayer": "α Gem",
+    "ra": 71.5783,
+    "dec": 31.8889,
+    "mag": 1.63,
+    "const": "Gemini"
+  },
+  {
+    "name": "Bellatrix",
+    "bayer": "γ Ori",
+    "ra": 81.2827,
+    "dec": 6.3522,
+    "mag": 1.64,
+    "const": "Orion"
+  },
+  {
+    "name": "Elnath",
+    "bayer": "β Tau",
+    "ra": 81.5731,
+    "dec": 28.6078,
+    "mag": 1.65,
+    "const": "Taurus"
+  },
+  {
+    "name": "Alnilam",
+    "bayer": "ε Ori",
+    "ra": 84.0507,
+    "dec": -1.2005,
+    "mag": 1.69,
+    "const": "Orion"
+  },
+  {
+    "name": "Alnitak",
+    "bayer": "ζ Ori",
+    "ra": 85.1556,
+    "dec": -1.9428,
+    "mag": 1.74,
+    "const": "Orion"
+  },
+  {
+    "name": "Alioth",
+    "bayer": "ε UMa",
+    "ra": 128.8334,
+    "dec": 55.9586,
+    "mag": 1.76,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Dubhe",
+    "bayer": "α UMa",
+    "ra": 165.9332,
+    "dec": 61.7507,
+    "mag": 1.79,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Mirfak",
+    "bayer": "α Per",
+    "ra": 49.8337,
+    "dec": 49.8656,
+    "mag": 1.79,
+    "const": "Perseus"
+  },
+  {
+    "name": "Alkaid",
+    "bayer": "η UMa",
+    "ra": 136.9125,
+    "dec": 49.3132,
+    "mag": 1.86,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Algol",
+    "bayer": "β Per",
+    "ra": 47.0428,
+    "dec": 40.9558,
+    "mag": 1.86,
+    "const": "Perseus"
+  },
+  {
+    "name": "Pollux",
+    "bayer": "β Gem",
+    "ra": 116.3294,
+    "dec": 28.0262,
+    "mag": 1.14,
+    "const": "Gemini"
+  },
+  {
+    "name": "Polaris",
+    "bayer": "α UMi",
+    "ra": 249.2658,
+    "dec": 89.2641,
+    "mag": 1.98,
+    "const": "Ursa Minor"
+  },
+  {
+    "name": "Merak",
+    "bayer": "β UMa",
+    "ra": 169.3038,
+    "dec": 56.3822,
+    "mag": 2.37,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Phecda",
+    "bayer": "γ UMa",
+    "ra": 174.1368,
+    "dec": 53.6872,
+    "mag": 2.44,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Megrez",
+    "bayer": "δ UMa",
+    "ra": 177.3330,
+    "dec": 57.0315,
+    "mag": 3.31,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Mizar",
+    "bayer": "ζ UMa",
+    "ra": 135.5267,
+    "dec": 54.9257,
+    "mag": 2.27,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Alcor",
+    "bayer": "80 UMa",
+    "ra": 135.5874,
+    "dec": 54.8653,
+    "mag": 3.99,
+    "const": "Ursa Major"
+  },
+  {
+    "name": "Caph",
+    "bayer": "β Cas",
+    "ra": 31.8458,
+    "dec": 59.1497,
+    "mag": 2.28,
+    "const": "Cassiopeia"
+  },
+  {
+    "name": "Schedar",
+    "bayer": "α Cas",
+    "ra": 10.1278,
+    "dec": 56.5372,
+    "mag": 2.24,
+    "const": "Cassiopeia"
+  },
+  {
+    "name": "Ruchbah",
+    "bayer": "δ Cas",
+    "ra": 23.0037,
+    "dec": 60.2350,
+    "mag": 2.66,
+    "const": "Cassiopeia"
+  },
+  {
+    "name": "Segin",
+    "bayer": "ε Cas",
+    "ra": 18.5633,
+    "dec": 63.7606,
+    "mag": 3.35,
+    "const": "Cassiopeia"
+  },
+  {
+    "name": "Navi",
+    "bayer": "γ Cas",
+    "ra": 6.3323,
+    "dec": 60.7178,
+    "mag": 4.01,
+    "const": "Cassiopeia"
+  },
+  {
+    "name": "Sadr",
+    "bayer": "γ Cyg",
+    "ra": 305.5173,
+    "dec": 40.2578,
+    "mag": 2.23,
+    "const": "Cygnus"
+  },
+  {
+    "name": "Albireo",
+    "bayer": "β Cyg",
+    "ra": 285.6052,
+    "dec": 27.9608,
+    "mag": 3.08,
+    "const": "Cygnus"
+  },
+  {
+    "name": "Gienah",
+    "bayer": "γ Cyg",
+    "ra": 300.0737,
+    "dec": 47.8339,
+    "mag": 2.48,
+    "const": "Cygnus"
+  },
+  {
+    "name": "Rukh",
+    "bayer": "δ Cyg",
+    "ra": 307.7424,
+    "dec": 45.0224,
+    "mag": 2.87,
+    "const": "Cygnus"
+  },
+  {
+    "name": "Algieba",
+    "bayer": "γ Leo",
+    "ra": 174.0035,
+    "dec": 23.4389,
+    "mag": 2.01,
+    "const": "Leo"
+  },
+  {
+    "name": "Zosma",
+    "bayer": "δ Leo",
+    "ra": 181.8553,
+    "dec": 20.5228,
+    "mag": 2.56,
+    "const": "Leo"
+  },
+  {
+    "name": "Denebola",
+    "bayer": "β Leo",
+    "ra": 182.4612,
+    "dec": 14.5717,
+    "mag": 2.14,
+    "const": "Leo"
+  }
+]

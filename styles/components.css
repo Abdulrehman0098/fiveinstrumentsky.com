@@ -1,0 +1,550 @@
+/* ============================================================
+   components.css — buttons, panels, cards, badges
+   ============================================================ */
+
+/* -----------------------------------------------------
+   Instrument plate styling
+   ----------------------------------------------------- */
+
+.instrument-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.instrument-title {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.12);
+}
+
+.instrument-subtitle {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.instrument-panel {
+  transition: opacity 0.2s ease;
+}
+
+/* -----------------------------------------------------
+   Tab bar — already in base, extending
+   ----------------------------------------------------- */
+
+.tab-btn {
+  text-decoration: none;
+}
+
+.tab-btn .tab-icon { display: flex; align-items: center; }
+
+/* -----------------------------------------------------
+   Layout containers
+   ----------------------------------------------------- */
+
+.stars-layout,
+.sound-layout,
+.vibration-layout,
+.magnetic-layout,
+.altimeter-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stars-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .stars-layout { grid-template-columns: 1fr; }
+}
+
+.sound-layout,
+.vibration-layout,
+.magnetic-layout,
+.altimeter-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .sound-layout { flex-direction: row; flex-wrap: wrap; }
+  .sound-readouts { flex: 0 0 200px; display: flex; flex-direction: column; gap: 6px; }
+  .sound-meter { flex: 1; }
+  .sound-charts { flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 8px; }
+  .sound-controls { flex: 0 0 100%; }
+}
+
+@media (min-width: 768px) {
+  .vibration-layout { flex-direction: row; flex-wrap: wrap; }
+  .vibration-readouts { flex: 0 0 180px; display: flex; flex-direction: column; gap: 6px; }
+  .vibration-charts { flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 8px; }
+}
+
+@media (min-width: 768px) {
+  .magnetic-layout { flex-direction: row; flex-wrap: wrap; }
+  .magnetic-readouts { flex: 0 0 180px; display: flex; flex-direction: column; gap: 6px; }
+  .magnetic-charts { flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 8px; }
+}
+
+@media (min-width: 640px) {
+  .altimeter-layout { flex-direction: row; flex-wrap: wrap; }
+  .altimeter-readouts { flex: 0 0 220px; display: flex; flex-direction: column; gap: 6px; }
+  .altimeter-charts { flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 8px; }
+}
+
+/* -----------------------------------------------------
+   Axis / readout rows
+   ----------------------------------------------------- */
+
+.vibration-readouts,
+.magnetic-readouts,
+.altimeter-readouts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vibration-readout-row,
+.altimeter-alt-detail,
+.altimeter-pressure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vibration-readout-row .readout-card,
+.altimeter-alt-detail .readout-card,
+.altimeter-pressure .readout-card {
+  flex: 1;
+  min-width: 80px;
+}
+
+.vibration-axis,
+.magnetic-axis {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.vibration-axis.major,
+.magnetic-axis.major {
+  border-color: var(--gold);
+  box-shadow: var(--glow-brass);
+}
+
+.axis-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+
+.axis-value {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.axis-unit {
+  font-size: 0.62rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+}
+
+.axis-axis-x .axis-value { color: #ef4444; }
+.axis-axis-y .axis-value { color: #22c55e; }
+.axis-axis-z .axis-value { color: #3b82f6; }
+
+/* -----------------------------------------------------
+   Search / controls
+   ----------------------------------------------------- */
+
+.search-row {
+  display: flex;
+  gap: 6px;
+}
+
+.search-input {
+  flex: 1;
+  min-height: 36px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: 0.78rem;
+  padding: 0 10px;
+  transition: border-color 0.15s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+
+.search-input::placeholder { color: var(--ink-faint); }
+
+.search-result {
+  min-height: 1.4em;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  padding: 4px 0;
+}
+
+.search-result.dry { color: var(--ink-faint); font-style: italic; }
+
+.celestial-body-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.celestial-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.72rem;
+}
+
+.celestial-item .name {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.celestial-item .coord {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--cyan);
+  letter-spacing: 0.04em;
+}
+
+.celestial-item .phase {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  color: var(--gold-dim);
+}
+
+/* Time scrubber */
+.time-scrubber-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.scrubber-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.time-scrubber {
+  flex: 1;
+  min-height: 28px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.time-scrubber::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+.time-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--gold);
+  border-radius: 50%;
+  margin-top: -7px;
+  box-shadow: 0 0 6px rgba(224, 184, 76, 0.4);
+  cursor: grab;
+}
+
+.time-scrubber::-moz-range-track {
+  height: 3px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+.time-scrubber::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--gold);
+  border-radius: 50%;
+  border: none;
+  cursor: grab;
+}
+
+.scrubber-value {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--cyan);
+  min-width: 50px;
+  text-align: right;
+}
+
+/* -----------------------------------------------------
+   Safety / meter bars
+   ----------------------------------------------------- */
+
+.safety-bar-wrap {
+  margin-bottom: 4px;
+}
+
+.safety-bar-track {
+  position: relative;
+  height: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  overflow: visible;
+}
+
+.safety-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 0.1s linear, background 0.2s;
+}
+
+.safety-zone {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 2px;
+  opacity: 0.15;
+}
+
+.safety-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--ink-faint);
+  padding: 0 2px;
+}
+
+.safety-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.safety-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.safety-dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.safety-dot.yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+.safety-dot.orange { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+.safety-dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+.safety-text {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* -----------------------------------------------------
+   Sensitivity / calibration rows
+   ----------------------------------------------------- */
+
+.sensitivity-row,
+.calibration-row,
+.magnetic-mode-row,
+.magnetic-audio-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sensitivity-label,
+.mode-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.sensitivity-slider {
+  flex: 1;
+  min-height: 20px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  max-width: 120px;
+}
+
+.sensitivity-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+.sensitivity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--gold);
+  border-radius: 50%;
+  margin-top: -5.5px;
+  cursor: pointer;
+}
+
+.sensitivity-slider::-moz-range-track {
+  height: 3px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+.sensitivity-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--gold);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+
+.sensitivity-value,
+.calibration-unit {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--cyan);
+  min-width: 36px;
+}
+
+.calibration-input {
+  width: 50px;
+  min-height: 28px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0 6px;
+  text-align: right;
+}
+
+.calibration-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* -----------------------------------------------------
+   Magnetic controls
+   ----------------------------------------------------- */
+
+.magnetic-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.magnetic-mode-row {
+  margin-bottom: 6px;
+}
+
+.magnetic-audio-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* -----------------------------------------------------
+   Privacy notice
+   ----------------------------------------------------- */
+
+.privacy-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.66rem;
+  color: var(--ink-dim);
+  line-height: 1.4;
+}
+
+.privacy-notice svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--green);
+  margin-top: 2px;
+}
+
+.privacy-notice span { flex: 1; }
+
+/* -----------------------------------------------------
+   Status areas
+   ----------------------------------------------------- */
+
+.sound-status, .vibration-status, .magnetic-status, .altimeter-status {
+  font-size: 0.72rem;
+  min-height: 1.2em;
+  padding: 4px 0;
+}
+
+.sound-status.error, .vibration-status.error, .magnetic-status.error, .altimeter-status.error {
+  color: var(--red);
+}
+
+.sound-status.ok, .vibration-status.ok, .magnetic-status.ok, .altimeter-status.ok {
+  color: var(--green);
+}
