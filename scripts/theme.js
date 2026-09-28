@@ -1,81 +1,59 @@
 /* ============================================================
-   theme.js — dark/light theme toggle, persisted to localStorage
+   theme.js — persisted theme cycle: galaxy -> daylight -> night
    ============================================================ */
 
-const Theme = (() => {
-  'use strict';
+const THEMES = ["galaxy", "daylight", "night"];
+const STORAGE_KEY = "fi-theme";
+const THEME_COLOR = {
+  galaxy: "#02040a",
+  daylight: "#e8eefa",
+  night: "#000000"
+};
 
-  const STORAGE_KEY = 'fi-theme';
-  const DARK = 'dark';
-  const LIGHT = 'light';
+export const Theme = {
+  current: "galaxy",
 
-  let current = DARK;
-
-  function loadSaved() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === LIGHT || saved === DARK) {
-        current = saved;
-      } else {
-        // Respect system preference
-        const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-        current = prefersLight ? LIGHT : DARK;
-      }
-    } catch (_) {
-      current = DARK;
+  init() {
+    const stored = safeStorage.get(STORAGE_KEY, null);
+    if (stored && THEMES.includes(stored)) {
+      this.current = stored;
+    } else {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      this.current = prefersDark ? "galaxy" : "daylight";
     }
-    apply(current);
-  }
+    this.apply();
+  },
 
-  function apply(theme) {
-    current = theme;
-    document.body.classList.remove(DARK, LIGHT);
-    document.body.classList.add(theme);
-    try { localStorage.setItem(STORAGE_KEY, theme); } catch (_) {}
-    // Update header toggle button state
-    const btn = document.getElementById('theme-toggle-btn');
-    if (btn) {
-      btn.setAttribute('aria-pressed', theme === LIGHT ? 'true' : 'false');
-      btn.setAttribute('data-theme', theme);
+  cycle() {
+    const idx = THEMES.indexOf(this.current);
+    this.current = THEMES[(idx + 1) % THEMES.length];
+    this.apply();
+  },
+
+  set(theme) {
+    if (THEMES.includes(theme)) {
+      this.current = theme;
+      this.apply();
     }
-    // Dispatch event
-    window.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
-  }
+  },
 
-  function toggle() {
-    const next = current === DARK ? LIGHT : DARK;
-    apply(next);
-  }
-
-  function set(theme) {
-    if (theme === DARK || theme === LIGHT) apply(theme);
-  }
-
-  function get() { return current; }
-
-  // Listen for system preference changes
-  function watchSystemPreference() {
+  apply() {
+    document.documentElement.setAttribute("data-theme", this.current);
     try {
-      const mq = window.matchMedia('(prefers-color-scheme: light)');
-      mq.addEventListener('change', (e) => {
-        // Only change if user hasn't explicitly saved a preference
-        const saved = '';
-        try { saved = localStorage.getItem(STORAGE_KEY); } catch (_) {}
-        if (!saved) {
-          apply(e.matches ? LIGHT : DARK);
-        }
-      });
+      safeStorage.set(STORAGE_KEY, this.current);
     } catch (_) {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = THEME_COLOR[this.current] || "#02040a";
+    SensorBus.emit("themechange", this.current);
+  },
+
+  getCycleLabel() {
+    const idx = THEMES.indexOf(this.current);
+    const next = THEMES[(idx + 1) % THEMES.length];
+    const labels = { galaxy: "Galaxy", daylight: "Daylight", night: "Night Vision" };
+    return labels[this.current] + " → " + labels[next];
   }
+};
 
-  return {
-    loadSaved,
-    apply,
-    toggle,
-    set,
-    get,
-    watchSystemPreference,
-  };
-})();
-
-export default Theme;
+export function getThemeName() { return Theme.current; }
+export function cycleTheme() { Theme.cycle(); }

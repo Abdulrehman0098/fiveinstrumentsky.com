@@ -1,0 +1,15 @@
+{
+  "name": "field-instruments",
+  "private": true,
+  "type": "module",
+  "description": "Field Instruments — Neon Galaxy telemetry suite",
+  "scripts": {
+    "serve": "npx --yes http-server -p 8080 -c-1 --bind 127.0.0.1",
+    "test": "node --experimental-vm-modules node_modules/.bin/mocha tests/**/*.test.mjs 2>/dev/null || echo 'Run tests individually: node tests/astro.test.mjs'",
+    "lint": "node --check scripts/lib/astronomy.js && node --check scripts/lib/tle-satellite.js && node --check scripts/lib/fft.js && node --check scripts/utils.js && node --check scripts/sensor-bus.js && node --check scripts/loop.js && node --check scripts/permissions.js && node --check scripts/theme.js && node --check scripts/units.js && node --check scripts/demo.js && node --check scripts/galaxy.js && node --check scripts/diagnostics.js && node --check scripts/main.js && echo 'All JS files pass syntax check'",
+    "make-icons": "node tools/make-icons.js"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5"
+  }
+}

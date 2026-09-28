@@ -1,604 +1,376 @@
 /* ============================================================
    instruments/magnetic.js — MAGNETIC FIELD MAPPER
-   Magnetometer anomaly detection with heat map trail
    ============================================================ */
 
-let magState = null;
-let isRunning = false;
+import { Demo } from '../demo.js';
+import { clamp } from '../utils.js';
 
-// Sensor
+let state = null;
+let isActive = false;
 let magSensor = null;
-let magHandler = null;
+let heatPointer = null;
 
-// Display state
-let magData = { x: 0, y: 0, z: 0, total: 0 };
-let baseline = { x: 0, y: 0, z: 0, total: 0 };
-let baselineSet = false;
-let anomaly = 0;
+export function init() {
+  state = {
+    xEl: null, yEl: null, zEl: null, totalEl: null,
+    vsEarthEl: null, deviationDirEl: null,
+    anomalyFillEl: null, anomalyValEl: null,
+    thresholdEl: null, thresholdDisplayEl: null,
+    fpsEl: null, waveCanvas: null, heatCanvas: null,
+    calibrateBtn: null, resetTrailBtn: null, toneBtn: null, hapticBtn: null,
+    statusEl: null, hintEl: null,
+    currentX: 0, currentY: 0, currentZ: 0, currentTotal: 0, currentAnomaly: 0,
+    baselineX: 15, baselineY: 10, baselineZ: 45,
+    baselineSamples: [],
+    anomalyThreshold: 5,
+    trailData: [],
+    paintMode: false,
+    toneActive: false, toneOsc: null, toneCtx: null,
+    xBuf: new Float64Array(300), yBuf: new Float64Array(300), zBuf: new Float64Array(300),
+    bufPos: 0
+  };
+}
 
-// Heat map trail
-const heatPoints = [];
-const MAX_HEAT_POINTS = 200;
-let heatCanvas = null, heatCtx = null;
-let waveCanvas = null, waveCtx = null;
+export function activate() {
+  if (!state || isActive) return;
+  isActive = true;
+  state.xEl = document.getElementById('mag-x');
+  state.yEl = document.getElementById('mag-y');
+  state.zEl = document.getElementById('mag-z');
+  state.totalEl = document.getElementById('mag-total');
+  state.vsEarthEl = document.getElementById('mag-vs-earth');
+  state.deviationDirEl = document.getElementById('mag-deviation-dir');
+  state.anomalyFillEl = document.getElementById('mag-anomaly-fill');
+  state.anomalyValEl = document.getElementById('mag-anomaly-val');
+  state.thresholdEl = document.getElementById('mag-threshold');
+  state.thresholdDisplayEl = document.getElementById('mag-threshold-display');
+  state.fpsEl = document.getElementById('mag-fps');
+  state.waveCanvas = document.getElementById('mag-wave-canvas');
+  state.heatCanvas = document.getElementById('mag-heat-canvas');
+  state.calibrateBtn = document.getElementById('mag-calibrate-btn');
+  state.resetTrailBtn = document.getElementById('mag-reset-trail-btn');
+  state.toneBtn = document.getElementById('mag-tone-btn');
+  state.hapticBtn = document.getElementById('mag-haptic-btn');
+  state.statusEl = document.getElementById('mag-status');
+  state.hintEl = document.querySelector('#panel-magnetic .heat-hint');
 
-// Audio
-let audioCtx = null;
-let toneOsc = null;
-let toneGain = null;
-let toneEnabled = false;
+  const threshold = document.getElementById('mag-threshold');
+  if (threshold) state.anomalyThreshold = parseFloat(threshold.value) || 5;
 
-// Haptic
-let hapticEnabled = false;
+  const chip = document.querySelector('#panel-magnetic .mode-chip');
+  const badge = document.querySelector('#panel-magnetic .sim-badge');
+  state.statusEl.textContent = 'Initializing…';
 
-// Threshold
-let threshold = 150;
-
-// FPS
-let fpsEl = null;
-let lastFrameTime = 0, frameCount = 0, fpsTimer = 0, fps = 0;
-let animFrameId = null;
-
-// Display elements
-let xEl, yEl, zEl, totalEl, vsEarthEl, deviationDirEl, anomalyFillEl, anomalyValEl;
-
-/* ---------- Initialize ---------- */
-
-function init(appState, bus, utils, perm) {
-  magState = { appState, bus, utils, perm };
-  heatCanvas = document.getElementById('mag-heat-canvas');
-  waveCanvas = document.getElementById('mag-wave-canvas');
-  fpsEl = document.getElementById('mag-fps');
-  xEl = document.getElementById('mag-x');
-  yEl = document.getElementById('mag-y');
-  zEl = document.getElementById('mag-z');
-  totalEl = document.getElementById('mag-total');
-  vsEarthEl = document.getElementById('mag-vs-earth');
-  deviationDirEl = document.getElementById('mag-deviation-dir');
-  anomalyFillEl = document.getElementById('mag-anomaly-fill');
-  anomalyValEl = document.getElementById('mag-anomaly-val');
-
-  // Guard: critical canvas elements
-  if (!heatCanvas || !waveCanvas) {
-    setStatus('Magnetic canvas elements not found', 'error');
-    return;
-  }
-  heatCtx = heatCanvas.getContext('2d');
-  waveCtx = waveCanvas.getContext('2d');
-  if (!heatCtx || !waveCtx) {
-    setStatus('Magnetic canvas contexts unavailable', 'error');
+  if (location.protocol === 'file:') {
+    state.statusEl.textContent = 'file:// — open via START.bat to use sensors';
+    if (chip) chip.dataset.mode = 'unsupported';
     return;
   }
 
-  wireControls();
-  resetBaseline();
-  updateStatus();
-}
-
-function destroy() {
-  stopSensor();
-  stopAudio();
-  isRunning = false;
-}
-
-function activate(appState, bus, utils, perm) {
-  magState = { appState, bus, utils, perm };
-}
-
-/* ---------- Sensor management ---------- */
-
-async function startSensor() {
-  if (isRunning) return;
-
-  // Try new Magnetometer API first
-  if (typeof Magnetometer !== 'undefined') {
+  const hasMag = 'Magnetometer' in window || 'UncalibratedMagnetometer' in window;
+  if (hasMag) {
     try {
       magSensor = new Magnetometer({ frequency: 60 });
-      magSensor.onreading = () => {
-        magData.x = magSensor.x;
-        magData.y = magSensor.y;
-        magData.z = magSensor.z;
-        magData.total = Math.sqrt(
-          magData.x ** 2 + magData.y ** 2 + magData.z ** 2
-        );
-        // Estimate Earth field ~ 50 µT for deviation calc
-        updateAnomaly();
-        if (!isRunning) {
-          isRunning = true;
-          document.getElementById('mag-toggle-btn').textContent = 'Stop Sensor';
-          document.getElementById('mag-toggle-btn').setAttribute('aria-pressed', 'true');
-          setStatus('Magnetometer active', 'ok');
-          lastFrameTime = performance.now();
-          frameCount = 0;
-          fpsTimer = lastFrameTime;
-          renderLoop();
-        }
-      };
-      magSensor.onerror = (err) => {
-        setStatus('Magnetometer error: ' + err.message, 'error');
-        stopSensor();
-      };
+      magSensor.addEventListener('reading', onMagReading);
+      magSensor.addEventListener('error', onMagError);
       magSensor.start();
-      setStatus('Magnetometer started — move device to map', 'ok');
-      return;
-    } catch (err) {
-      // Fall through to DeviceOrientation fallback
-    }
-  }
-
-  // Fallback: DeviceOrientationEvent magnetic data
-  if (typeof DeviceOrientationEvent !== 'undefined') {
-    magHandler = (event) => {
-      if (event.magneticField) {
-        // Some browsers expose magneticField directly
-        magData.x = event.magneticField.x || 0;
-        magData.y = event.magneticField.y || 0;
-        magData.z = event.magneticField.z || 0;
-        magData.total = Math.sqrt(magData.x**2 + magData.y**2 + magData.z**2);
-      } else if (event.webkitCompassHeading !== undefined && event.magneticHeading !== undefined) {
-        // Less precise fallback
-        magData.total = event.magneticHeading || 0;
-        magData.x = 0; magData.y = 0; magData.z = 0;
-      } else {
-        return; // No magnetic data available
+      if (chip) chip.dataset.mode = 'live';
+      state.statusEl.textContent = 'Magnetometer active';
+    } catch (e) {
+      if (e.name === 'SecurityError' || e.name === 'NotAllowedError') {
+        state.statusEl.textContent = 'Permission denied — use Demo';
+        if (chip) chip.dataset.mode = 'denied';
+        badge?.classList.remove('hidden');
+        Demo.setEnabled(true);
+        isActive = false;
+        return;
       }
-      updateAnomaly();
-      if (!isRunning) {
-        isRunning = true;
-        document.getElementById('mag-toggle-btn').textContent = 'Stop Sensor';
-        document.getElementById('mag-toggle-btn').setAttribute('aria-pressed', 'true');
-        setStatus('Magnetic data active (DeviceOrientation fallback)', 'ok');
-        lastFrameTime = performance.now();
-        frameCount = 0;
-        fpsTimer = lastFrameTime;
-        renderLoop();
+      try {
+        magSensor = new UncalibratedMagnetometer({ frequency: 60 });
+        magSensor.addEventListener('reading', onMagReading);
+        magSensor.start();
+        if (chip) chip.dataset.mode = 'live';
+        state.statusEl.textContent = 'Uncalibrated magnetometer active';
+      } catch (_) {
+        state.statusEl.textContent = 'No magnetometer on this device — Demo mode';
+        if (chip) chip.dataset.mode = 'unsupported';
+        badge?.classList.remove('hidden');
+        Demo.setEnabled(true);
+        isActive = false;
       }
-    };
-    window.addEventListener('deviceorientation', magHandler);
-    isRunning = true;
-    document.getElementById('mag-toggle-btn').textContent = 'Stop Sensor';
-    document.getElementById('mag-toggle-btn').setAttribute('aria-pressed', 'true');
-    setStatus('Listening for magnetic data…', 'ok');
-    lastFrameTime = performance.now();
-    frameCount = 0;
-    fpsTimer = lastFrameTime;
-    renderLoop();
-    return;
-  }
-
-  setStatus('No magnetometer or magnetic sensor available on this device', 'error');
-}
-
-function stopSensor() {
-  if (magSensor) {
-    try { magSensor.stop(); } catch (_) {}
-    magSensor = null;
-  }
-  if (magHandler) {
-    window.removeEventListener('deviceorientation', magHandler);
-    magHandler = null;
-  }
-  isRunning = false;
-  if (animFrameId) {
-    cancelAnimationFrame(animFrameId);
-    animFrameId = null;
-  }
-  document.getElementById('mag-toggle-btn').textContent = 'Start Sensor';
-  document.getElementById('mag-toggle-btn').setAttribute('aria-pressed', 'false');
-  setStatus('Sensor stopped', '');
-}
-
-/* ---------- Anomaly calculation ---------- */
-
-function updateAnomaly() {
-  if (!baselineSet) return;
-
-  const diff = Math.abs(magData.total - baseline.total);
-  const earthField = 50; // µT — approximate local Earth field
-  anomaly = diff;
-
-  // vs Earth field
-  if (vsEarthEl) {
-    const pct = ((magData.total - earthField) / earthField * 100);
-    vsEarthEl.textContent = (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
-    if (deviationDirEl) {
-      deviationDirEl.textContent = pct > 0 ? 'above' : 'below' + ' Earth avg';
     }
+  } else {
+    state.statusEl.textContent = 'No magnetometer on this device — Demo mode';
+    if (chip) chip.dataset.mode = 'unsupported';
+    badge?.classList.remove('hidden');
+    Demo.setEnabled(true);
+    isActive = false;
   }
 
-  // Anomaly bar
-  if (anomalyFillEl && anomalyValEl) {
-    const maxDisplay = 500; // µT
-    const pct = clamp((anomaly / maxDisplay) * 100, 0, 100);
-    anomalyFillEl.style.width = pct + '%';
-    anomalyValEl.textContent = Math.round(anomaly) + ' µT';
+  state.calibrateBtn?.addEventListener('click', calibrate);
+  state.resetTrailBtn?.addEventListener('click', resetTrail);
+  state.toneBtn?.addEventListener('click', toggleTone);
+  state.hapticBtn?.addEventListener('click', toggleHaptic);
 
-    if (anomaly > threshold * 2) {
-      anomalyFillEl.className = 'anomaly-bar-fill danger';
-    } else if (anomaly > threshold) {
-      anomalyFillEl.className = 'anomaly-bar-fill warning';
-    } else {
-      anomalyFillEl.className = 'anomaly-bar-fill';
-    }
-  }
+  const thresholdInput = document.getElementById('mag-threshold');
+  if (thresholdInput) thresholdInput.addEventListener('input', () => { state.anomalyThreshold = parseFloat(thresholdInput.value) || 5; if (state.thresholdDisplayEl) state.thresholdDisplayEl.textContent = (state.anomalyThreshold).toFixed(1) + ' µT'; });
 
-  // Tone feedback
-  if (toneEnabled && audioCtx && toneOsc && anomaly > threshold) {
-    const freq = 200 + (anomaly / threshold) * 800;
-    try {
-      toneOsc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      toneGain.gain.setValueAtTime(Math.min(0.3, anomaly / threshold * 0.2), audioCtx.currentTime);
-    } catch (_) {}
-  } else if (toneEnabled && audioCtx) {
-    try {
-      toneGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    } catch (_) {}
-  }
-
-  // Haptic feedback
-  if (hapticEnabled && anomaly > threshold && navigator.vibrate) {
-    const duration = Math.min(100, Math.max(10, anomaly / threshold * 50));
-    navigator.vibrate(duration);
-  }
-
-  // Record heat map point
-  if (anomaly > threshold * 0.3) {
-    recordHeatPoint(anomaly);
-  }
+  if (state.hintEl) state.hintEl.textContent = 'Drag across the heat canvas to paint a field map';
+  setupHeatCanvas();
+  Loop.register('magnetic', drawLoop, 30);
 }
 
-function recordHeatPoint(strength) {
-  const rect = heatCanvas.getBoundingClientRect();
-  // Record at random position within canvas (movement-based would require GPS/pointercal)
-  // Since we can't track actual position, record near center with strength-based radius
-  const cx = rect.width / 2;
-  const cy = rect.height / 2;
-  const angle = Math.random() * 2 * Math.PI;
-  const dist = Math.min(rect.width, rect.height) * 0.3 * (strength / threshold);
-  const x = cx + Math.cos(angle) * dist;
-  const y = cy + Math.sin(angle) * dist;
-
-  heatPoints.push({ x, y, strength, time: Date.now() });
-  if (heatPoints.length > MAX_HEAT_POINTS) heatPoints.shift();
-}
-
-function resetBaseline() {
-  baseline.x = magData.x;
-  baseline.y = magData.y;
-  baseline.z = magData.z;
-  baseline.total = magData.total;
-  baselineSet = true;
-  if (vsEarthEl) vsEarthEl.textContent = '0.0%';
-  if (deviationDirEl) deviationDirEl.textContent = 'at baseline';
-}
-
-/* ---------- Render loop ---------- */
-
-function renderLoop() {
-  if (!isRunning) return;
-  animFrameId = requestAnimationFrame(renderLoop);
-
-  const now = performance.now();
-  const elapsed = now - lastFrameTime;
-  lastFrameTime = now;
-
-  frameCount++;
-  if (now - fpsTimer >= 1000) {
-    fps = Math.round(frameCount * 1000 / (now - fpsTimer));
-    frameCount = 0;
-    fpsTimer = now;
-    if (fpsEl) fpsEl.textContent = fps + ' fps';
-  }
-
+export function deactivate() {
+  if (!isActive) return;
+  isActive = false;
+  if (magSensor) { try { if (typeof magSensor.stop === 'function') magSensor.stop(); } catch (_) {} magSensor = null; }
+  if (state.toneActive) stopTone();
+  Loop.unregister('magnetic');
+  const chip = document.querySelector('#panel-magnetic .mode-chip');
+  if (chip) chip.dataset.mode = 'idle';
+  const badge = document.querySelector('#panel-magnetic .sim-badge');
+  if (badge) badge.classList.add('hidden');
   updateReadouts();
-  drawWaveform();
-  drawHeatMap();
+  drawWaveFrame();
+  drawHeatFrame();
+}
+
+function onMagReading(e) {
+  if (!isActive) return;
+  const x = e.reading.x !== null ? e.reading.x : 0;
+  const y = e.reading.y !== null ? e.reading.y : 0;
+  const z = e.reading.z !== null ? e.reading.z : 0;
+  state.currentX = x; state.currentY = y; state.currentZ = z;
+  state.currentTotal = Math.sqrt(x ** 2 + y ** 2 + z ** 2);
+  state.baselineSamples.push(x, y, z);
+  if (state.baselineSamples.length > 500) state.baselineSamples.splice(0, state.baselineSamples.length - 500);
+  if (state.baselineSamples.length >= 100 && state.baselineSamples.length % 100 === 0) updateBaselines();
+  const diffX = x - state.baselineX, diffY = y - state.baselineY, diffZ = z - state.baselineZ;
+  state.currentAnomaly = Math.sqrt(diffX ** 2 + diffY ** 2 + diffZ ** 2);
+  state.xBuf[state.bufPos % 300] = x;
+  state.yBuf[state.bufPos % 300] = y;
+  state.zBuf[state.bufPos % 300] = z;
+  state.bufPos++;
+  updateReadouts();
+  drawWaveFrame();
+  drawHeatFrame();
+  updateAnomalyMeter(state.currentAnomaly);
+}
+
+function updateBaselines() {
+  const samples = state.baselineSamples;
+  if (samples.length < 50) return;
+  const xs = samples.filter((_, i) => i % 3 === 0);
+  const ys = samples.filter((_, i) => i % 3 === 1);
+  const zs = samples.filter((_, i) => i % 3 === 2);
+  state.baselineX = median(xs);
+  state.baselineY = median(ys);
+  state.baselineZ = median(zs);
+}
+
+function median(arr) {
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function onMagError(e) {
+  if (!isActive) return;
+  console.warn('Magnetometer error:', e);
+  if (state.statusEl && isActive) state.statusEl.textContent = 'Sensor error — ' + e.message;
 }
 
 function updateReadouts() {
-  if (xEl) xEl.textContent = magData.x.toFixed(1);
-  if (yEl) yEl.textContent = magData.y.toFixed(1);
-  if (zEl) zEl.textContent = magData.z.toFixed(1);
-  if (totalEl) totalEl.textContent = magData.total.toFixed(1);
+  if (state.xEl) state.xEl.textContent = isFinite(state.currentX) ? state.currentX.toFixed(2) + ' µT' : '—';
+  if (state.yEl) state.yEl.textContent = isFinite(state.currentY) ? state.currentY.toFixed(2) + ' µT' : '—';
+  if (state.zEl) state.zEl.textContent = isFinite(state.currentZ) ? state.currentZ.toFixed(2) + ' µT' : '—';
+  if (state.totalEl) state.totalEl.textContent = isFinite(state.currentTotal) ? state.currentTotal.toFixed(2) + ' µT' : '—';
+  const bTotal = Math.sqrt(state.baselineX ** 2 + state.baselineY ** 2 + state.baselineZ ** 2);
+  const diffTotal = Math.abs(state.currentTotal - bTotal);
+  if (state.vsEarthEl) state.vsEarthEl.textContent = bTotal > 0 ? (diffTotal).toFixed(2) + ' µT (' + (diffTotal / bTotal * 100).toFixed(1) + '%)' : '—';
+  const dx = state.currentX - state.baselineX;
+  const dy = state.currentY - state.baselineY;
+  let dirDeg = 0;
+  if (dx !== 0 || dy !== 0) dirDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+  if (state.deviationDirEl) state.deviationDirEl.textContent = dirDeg.toFixed(0) + '° ' + dirToCompass(dirDeg);
 }
 
-/* ---------- Waveform drawing (3-axis over time) ---------- */
-
-let magHistory = { x: [], y: [], z: [], t: [] };
-const MAX_MAG_HISTORY = 200;
-
-function drawWaveform() {
-  if (!waveCtx || !waveCanvas) return;
-  const rect = waveCanvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.round(rect.width * dpr);
-  const h = Math.round(rect.height * dpr);
-
-  if (waveCanvas.width !== w || waveCanvas.height !== h) {
-    waveCanvas.width = w;
-    waveCanvas.height = h;
-  }
-
-  waveCtx.clearRect(0, 0, w, h);
-  waveCtx.fillStyle = '#060912';
-  waveCtx.fillRect(0, 0, w, h);
-
-  // Add current data to history
-  magHistory.x.push(magData.x);
-  magHistory.y.push(magData.y);
-  magHistory.z.push(magData.z);
-  magHistory.t.push(performance.now());
-  if (magHistory.x.length > MAX_MAG_HISTORY) {
-    magHistory.x.shift();
-    magHistory.y.shift();
-    magHistory.z.shift();
-    magHistory.t.shift();
-  }
-
-  if (magHistory.x.length < 2) return;
-
-  const cssW = rect.width;
-  const cssH = rect.height;
-  const len = magHistory.x.length;
-  const step = Math.max(1, Math.floor(len / cssW));
-  const midY = cssH / 2 * dpr;
-  const amp = cssH * 0.4 * dpr;
-
-  // Neon axis colors: cyan (X), green (Y), red (Z)
-  const colors = ['#00f0ff', '#22c55e', '#ef4444'];
-  const axes = ['x', 'y', 'z'];
-
-  for (let a = 0; a < 3; a++) {
-    const data = magHistory[axes[a]];
-    waveCtx.strokeStyle = colors[a];
-    waveCtx.lineWidth = 1.3;
-    waveCtx.shadowColor = colors[a] + '40';
-    waveCtx.shadowBlur = 4;
-    waveCtx.beginPath();
-
-    for (let i = 0; i < cssW; i++) {
-      const idx = Math.floor(i * step);
-      const idxClamped = Math.min(idx, data.length - 1);
-      const val = data[idxClamped];
-      const y = midY - val * amp;
-
-      if (i === 0) waveCtx.moveTo(i * dpr, y);
-      else waveCtx.lineTo(i * dpr, y);
-    }
-    waveCtx.stroke();
-    waveCtx.shadowBlur = 0;
-  }
-
-  // Baseline reference — gold dashed
-  waveCtx.strokeStyle = 'rgba(255,215,0,0.35)';
-  waveCtx.lineWidth = 0.8;
-  waveCtx.setLineDash([3, 3]);
-  waveCtx.beginPath();
-  waveCtx.moveTo(0, midY - baseline.total * amp);
-  waveCtx.lineTo(cssW * dpr, midY - baseline.total * amp);
-  waveCtx.stroke();
-  waveCtx.setLineDash([]);
+function dirToCompass(deg) {
+  const dirs = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+  const i = Math.round(((deg + 360) % 360) / 45) % 8;
+  return dirs[i];
 }
 
-/* ---------- Heat map drawing ---------- */
-
-function drawHeatMap() {
-  if (!heatCtx || !heatCanvas) return;
-  const rect = heatCanvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.round(rect.width * dpr);
-  const h = Math.round(rect.height * dpr);
-
-  if (heatCanvas.width !== w || heatCanvas.height !== h) {
-    heatCanvas.width = w;
-    heatCanvas.height = h;
-  }
-
-  heatCtx.clearRect(0, 0, w, h);
-  heatCtx.fillStyle = '#060912';
-  heatCtx.fillRect(0, 0, w, h);
-
-  // Grid
-  heatCtx.strokeStyle = 'rgba(30,40,66,0.3)';
-  heatCtx.lineWidth = 0.5;
-  for (let i = 0; i < 10; i++) {
-    const x = (i / 10) * w;
-    heatCtx.beginPath();
-    heatCtx.moveTo(x, 0);
-    heatCtx.lineTo(x, h);
-    heatCtx.stroke();
-    const y = (i / 10) * h;
-    heatCtx.beginPath();
-    heatCtx.moveTo(0, y);
-    heatCtx.lineTo(w, y);
-    heatCtx.stroke();
-  }
-
-  if (heatPoints.length === 0) {
-    heatCtx.fillStyle = 'rgba(136,146,168,0.4)';
-    heatCtx.font = `${11 * dpr}px "IBM Plex Sans", sans-serif`;
-    heatCtx.textAlign = 'center';
-    heatCtx.fillText('Move device to record magnetic field', w / 2, h / 2);
-    return;
-  }
-
-  // Draw heat points with intensity-based radius and color — neon palette
-  for (const pt of heatPoints) {
-    const age = (Date.now() - pt.time) / 1000;
-    const alpha = Math.max(0, 1 - age / 30); // fade over 30s
-    if (alpha < 0.05) continue;
-
-    const radius = Math.max(4, Math.min(15, pt.strength / threshold * 10)) * dpr;
-    const intensity = clamp(pt.strength / threshold, 0, 2);
-
-    let color;
-    if (intensity < 0.5) {
-      color = `rgba(0,240,255,${alpha * 0.45})`; // cyan — weak
-    } else if (intensity < 1.0) {
-      color = `rgba(255,215,0,${alpha * 0.60})`; // gold — moderate
-    } else {
-      color = `rgba(239,68,68,${alpha * 0.75})`; // red — strong
-    }
-
-    heatCtx.fillStyle = color;
-    heatCtx.shadowColor = color;
-    heatCtx.shadowBlur = 6;
-    heatCtx.beginPath();
-    heatCtx.arc(pt.x * dpr, pt.y * dpr, radius, 0, 2 * Math.PI);
-    heatCtx.fill();
-    heatCtx.shadowBlur = 0;
-  }
-
-  // Draw trail lines — gold
-  if (heatPoints.length > 1) {
-    heatCtx.strokeStyle = 'rgba(255,215,0,0.18)';
-    heatCtx.lineWidth = 0.9;
-    heatCtx.beginPath();
-    heatCtx.moveTo(heatPoints[0].x * dpr, heatPoints[0].y * dpr);
-    for (let i = 1; i < heatPoints.length; i++) {
-      heatCtx.lineTo(heatPoints[i].x * dpr, heatPoints[i].y * dpr);
-    }
-    heatCtx.stroke();
-  }
+function updateAnomalyMeter(anomaly) {
+  const fill = state.anomalyFillEl;
+  const valEl = state.anomalyValEl;
+  if (!fill || !valEl) return;
+  const pct = clamp(anomaly / (state.anomalyThreshold || 5) * 100, 0, 100);
+  fill.style.width = pct + '%';
+  if (pct > 80) { fill.style.background = '#ef4444'; fill.style.boxShadow = '0 0 8px rgba(239,68,68,0.3)'; }
+  else if (pct > 50) { fill.style.background = '#eab308'; fill.style.boxShadow = '0 0 8px rgba(234,179,8,0.3)'; }
+  else { fill.style.background = '#00f0ff'; fill.style.boxShadow = '0 0 8px rgba(0,240,255,0.2)'; }
+  valEl.textContent = anomaly.toFixed(2) + ' µT';
 }
 
-/* ---------- Audio tone ---------- */
+function calibrate() {
+  state.baselineX = state.currentX;
+  state.baselineY = state.currentY;
+  state.baselineZ = state.currentZ;
+  state.baselineSamples = [];
+  state.statusEl.textContent = 'Calibrated: ' + state.baselineX.toFixed(1) + ', ' + state.baselineY.toFixed(1) + ', ' + state.baselineZ.toFixed(1) + ' µT (Earth field)';
+  state.statusEl.classList.add('ok');
+  setTimeout(() => state.statusEl.classList.remove('ok'), 3000);
+  const chip = document.querySelector('#panel-magnetic .mode-chip');
+  if (chip) chip.dataset.mode = 'live';
+  updateReadouts();
+  updateAnomalyMeter(0);
+}
 
-function startAudio() {
-  if (audioCtx) return;
+function resetTrail() {
+  state.trailData = [];
+  drawHeatFrame();
+  if (state.statusEl) { state.statusEl.textContent = 'Heat map trail cleared'; setTimeout(() => { state.statusEl.textContent = 'Magnetometer active'; }, 2000); }
+}
+
+function toggleTone() {
+  if (state.toneActive) { stopTone(); state.toneBtn.setAttribute('aria-pressed', 'false'); const label = state.toneBtn.querySelector('.label'); if (label) label.textContent = 'Tone OFF'; }
+  else { startTone(); state.toneBtn.setAttribute('aria-pressed', 'true'); const label = state.toneBtn.querySelector('.label'); if (label) label.textContent = 'Tone ON'; }
+}
+
+function startTone() {
   try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    toneOsc = audioCtx.createOscillator();
-    toneGain = audioCtx.createGain();
-    toneOsc.type = 'sine';
-    toneOsc.frequency.setValueAtTime(200, audioCtx.currentTime);
-    toneGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    toneOsc.connect(toneGain);
-    toneGain.connect(audioCtx.destination);
-    toneOsc.start();
-  } catch (err) {
-    setStatus('Audio for tone feedback not available: ' + err.message, 'error');
+    state.toneCtx = new AudioContext();
+    state.toneOsc = state.toneCtx.createOscillator();
+    state.toneOsc.type = 'sawtooth';
+    state.toneOsc.frequency.value = 80;
+    const gain = state.toneCtx.createGain();
+    gain.gain.value = 0.05;
+    state.toneOsc.connect(gain);
+    gain.connect(state.toneCtx.destination);
+    state.toneOsc.start();
+    state.toneActive = true;
+  } catch (_) {}
+}
+
+function stopTone() {
+  if (state.toneOsc) { try { state.toneOsc.stop(); } catch (_) {} state.toneOsc = null; }
+  if (state.toneCtx && state.toneCtx.state !== 'closed') { try { state.toneCtx.close(); } catch (_) {} state.toneCtx = null; }
+  state.toneActive = false;
+}
+
+function toggleHaptic() {
+  if (navigator.vibrate) {
+    navigator.vibrate(200);
+    state.hapticBtn.setAttribute('aria-pressed', state.hapticBtn.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+    const label = state.hapticBtn.querySelector('.label');
+    if (label) label.textContent = navigator.vibrate ? 'Vibrate ON' : 'Vibrate OFF';
+  } else {
+    if (state.statusEl) { state.statusEl.textContent = 'Vibration API not available on this device'; state.statusEl.classList.add('info'); setTimeout(() => state.statusEl.classList.remove('info'), 3000); }
   }
 }
 
-function stopAudio() {
-  if (toneOsc) {
-    try { toneOsc.stop(); } catch (_) {}
-    toneOsc = null;
-  }
-  if (toneGain) {
-    try { toneGain.disconnect(); } catch (_) {}
-    toneGain = null;
-  }
-  if (audioCtx && audioCtx.state !== 'closed') {
-    audioCtx.close().catch(() => {});
-  }
-  audioCtx = null;
+function setupHeatCanvas() {
+  const heatCanvas = state.heatCanvas;
+  if (!heatCanvas) return;
+  heatCanvas.addEventListener('pointerdown', (e) => { heatCanvas.setPointerCapture(e.pointerId); heatPointer = { x: e.offsetX / heatCanvas.width, y: e.offsetY / heatCanvas.height }; state.paintMode = true; });
+  heatCanvas.addEventListener('pointermove', (e) => {
+    if (!state.paintMode) return;
+    heatPointer = { x: e.offsetX / heatCanvas.width, y: e.offsetY / heatCanvas.height };
+    const canvasW = heatCanvas.width / (window.devicePixelRatio || 1);
+    const canvasH = heatCanvas.height / (window.devicePixelRatio || 1);
+    const px = (e.offsetX / (heatCanvas.width / canvasW));
+    const py = (e.offsetY / (heatCanvas.height / canvasH));
+    state.trailData.push({ x: px, y: py, val: state.currentAnomaly });
+    if (state.trailData.length > 500) state.trailData.splice(0, 100);
+    drawHeatFrame();
+  });
+  heatCanvas.addEventListener('pointerup', () => { state.paintMode = false; heatPointer = null; });
+  heatCanvas.addEventListener('pointercancel', () => { state.paintMode = false; heatPointer = null; });
 }
 
-/* ---------- Controls ---------- */
+function drawHeatFrame() {
+  const canvas = state.heatCanvas;
+  if (!canvas) return;
+  const info = fitCanvas(canvas);
+  if (!info) return;
+  const { ctx, w, h } = info;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#060912'; ctx.fillRect(0, 0, w, h);
+  for (const pt of state.trailData) {
+    const val = clamp(pt.val / (state.anomalyThreshold || 5), 0, 1);
+    let r, g, b;
+    if (val < 0.4) { const t = val / 0.4; r = 160 + 60 * t; g = 30 + 100 * t; b = 200 + 20 * t; }
+    else if (val < 0.7) { const t = (val - 0.4) / 0.3; r = 220 + 35 * t; g = 130 + 120 * t; b = 220 - 200 * t; }
+    else { const t = (val - 0.7) / 0.3; r = 255; g = 250 + 5 * t; b = 20 + 235 * t; }
+    const radius = 3 + val * 8;
+    const alpha = 0.3 + val * 0.5;
+    ctx.fillStyle = 'rgba(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ',' + alpha + ')';
+    ctx.beginPath(); ctx.arc(pt.x * w, pt.y * h, radius, 0, 2 * Math.PI); ctx.fill();
+  }
+  const legendY = h - 16, legendH = 6, legendW = w - 20, legendX = 10;
+  for (let i = 0; i < legendW; i++) {
+    const t = i / legendW;
+    let r, g, b;
+    if (t < 0.4) { const lt = t / 0.4; r = 160 + 60 * lt; g = 30 + 100 * lt; b = 200 + 20 * lt; }
+    else if (t < 0.7) { const lt = (t - 0.4) / 0.3; r = 220 + 35 * lt; g = 130 + 120 * lt; b = 220 - 200 * lt; }
+    else { const lt = (t - 0.7) / 0.3; r = 255; g = 250 + 5 * lt; b = 20 + 235 * lt; }
+    ctx.fillStyle = 'rgb(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ')';
+    ctx.fillRect(legendX + i, legendY, 1, legendH);
+  }
+  ctx.fillStyle = 'rgba(136,146,184,0.6)'; ctx.font = '6px ui-monospace, monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText('low', legendX, legendY - 1);
+  ctx.textAlign = 'right'; ctx.fillText('high', legendX + legendW, legendY - 1);
+  if (!state.paintMode && performance.now() % 100 < 5) {
+    state.trailData.push({ x: 0.5 + 0.3 * Math.sin(performance.now() * 0.001), y: 0.5 + 0.3 * Math.cos(performance.now() * 0.0015), val: state.currentAnomaly * 0.3 });
+  }
+}
 
-function wireControls() {
-  const toggleBtn = document.getElementById('mag-toggle-btn');
-  toggleBtn.addEventListener('click', async () => {
-    if (isRunning) {
-      stopSensor();
-      stopAudio();
-    } else {
-      await startSensor();
-      if (toneEnabled) startAudio();
+function drawWaveFrame() {
+  const canvas = state.waveCanvas;
+  if (!canvas) return;
+  const info = fitCanvas(canvas);
+  if (!info) return;
+  const { ctx, w, h } = info;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#060912'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(0,240,255,0.04)'; ctx.lineWidth = 0.5;
+  for (let x = 0; x < w; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(0,240,255,0.1)'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(136,146,184,0.4)'; ctx.font = '7px ui-monospace, monospace';
+  ctx.fillText('+', 2, 10); ctx.fillText('0', 2, h / 2 + 3); ctx.fillText('-', 2, h - 4);
+  const n = Math.min(state.bufPos, 200);
+  if (n < 2) return;
+  const scale = h * 0.38 / Math.max(1, (state.baselineZ || 45) * 1.2);
+  const axes = [
+    { buf: state.xBuf, color: '#00f0ff', width: 1.5 },
+    { buf: state.yBuf, color: '#ffd700', width: 1.2 },
+    { buf: state.zBuf, color: '#a855f7', width: 1.2 }
+  ];
+  for (const ax of axes) {
+    ctx.strokeStyle = ax.color; ctx.lineWidth = ax.width;
+    ctx.shadowColor = ax.color; ctx.shadowBlur = 4;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const v = ax.buf[(state.bufPos - n + i) % 300];
+      if (v == null) continue;
+      const xPos = (state.bufPos - n + i) / state.bufPos * w;
+      const yPos = h / 2 - v * scale;
+      if (i === 0) ctx.moveTo(xPos, yPos); else ctx.lineTo(xPos, yPos);
     }
-    updateStatus();
-  });
-
-  // Calibrate
-  document.getElementById('mag-calibrate-btn').addEventListener('click', () => {
-    resetBaseline();
-    const el = document.getElementById('mag-status');
-    if (el) {
-      el.textContent = 'Baseline calibrated at ' + magData.total.toFixed(1) + ' µT';
-      el.className = 'magnetic-status ok';
-    }
-  });
-
-  // Reset trail
-  document.getElementById('mag-reset-trail-btn').addEventListener('click', () => {
-    heatPoints.length = 0;
-  });
-
-  // Threshold
-  const thresholdSlider = document.getElementById('mag-threshold');
-  const thresholdDisplay = document.getElementById('mag-threshold-display');
-  if (thresholdSlider && thresholdDisplay) {
-    thresholdSlider.addEventListener('input', () => {
-      threshold = parseInt(thresholdSlider.value, 10);
-      thresholdDisplay.textContent = threshold + ' µT';
-    });
+    ctx.stroke(); ctx.shadowBlur = 0;
   }
-
-  // Tone toggle
-  const toneBtn = document.getElementById('mag-tone-btn');
-  toneBtn.addEventListener('click', () => {
-    toneEnabled = !toneEnabled;
-    toneBtn.setAttribute('aria-pressed', toneEnabled ? 'true' : 'false');
-    const svg = toneBtn.querySelector('svg');
-    if (svg) svg.style.display = toneEnabled ? 'none' : 'block';
-    // Update text node (first text child after svg)
-    const textNode = toneBtn.childNodes.find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
-    if (textNode) textNode.textContent = '  ' + (toneEnabled ? 'Tone: On' : 'Tone: Off');
-    if (toneEnabled) {
-      startAudio();
-      setStatus('Tone feedback on', 'info');
-    } else {
-      if (audioCtx) {
-        try { toneGain.gain.setValueAtTime(0, audioCtx.currentTime); } catch (_) {}
-      }
-      setStatus('Tone feedback off', 'info');
-    }
-  });
-
-  // Haptic toggle
-  const hapticBtn = document.getElementById('mag-haptic-btn');
-  hapticBtn.addEventListener('click', () => {
-    hapticEnabled = !hapticEnabled;
-    hapticBtn.setAttribute('aria-pressed', hapticEnabled ? 'true' : 'false');
-    const svg = hapticBtn.querySelector('svg');
-    if (svg) svg.style.display = hapticEnabled ? 'none' : 'block';
-    const textNode = hapticBtn.childNodes.find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
-    if (textNode) textNode.textContent = '  ' + (hapticEnabled ? 'Haptic: On' : 'Haptic: Off');
-    if (hapticEnabled) {
-      setStatus('Haptic feedback on', 'info');
-    } else {
-      setStatus('Haptic feedback off', 'info');
-    }
-  });
+  if (state.fpsEl) state.fpsEl.textContent = Loop.getFPS() + ' FPS';
 }
 
-/* ---------- Status ---------- */
-
-function setStatus(msg, type) {
-  const el = document.getElementById('mag-status');
-  if (el) {
-    el.textContent = msg;
-    el.className = 'magnetic-status' + (type ? ' ' + type : '');
-    if (type === 'ok') el.style.color = 'var(--green)';
-    else if (type === 'error') el.style.color = 'var(--red)';
-    else if (type === 'info') el.style.color = 'var(--cyan)';
-    else el.style.color = 'var(--ink-dim)';
+function drawLoop() {
+  if (!isActive) return;
+  if (state.toneActive && state.toneOsc && state.toneCtx) {
+    try { state.toneOsc.frequency.setTargetAtTime(60 + state.currentAnomaly * 8, state.toneCtx.currentTime, 0.05); } catch (_) {}
   }
+  drawWaveFrame();
+  drawHeatFrame();
 }
-
-function updateStatus() {
-  setStatus(isRunning ? 'Magnetometer active — move device around to build heat map' : 'Tap "Start Sensor" to begin', isRunning ? 'ok' : '');
-}
-
-/* ---------- Resize ---------- */
-
-function onResize(appState, bus, utils, perm) {}
-
-export default {
-  init,
-  destroy,
-  activate,
-  onResize,
-};

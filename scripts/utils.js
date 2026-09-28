@@ -1,366 +1,263 @@
 /* ============================================================
-   utils.js — shared math, formatting, coordinate helpers
+   utils.js — pure helpers, fitCanvas, observeCanvas
+   No DOM side effects at import time.
    ============================================================ */
 
-const Utils = (() => {
-  'use strict';
+/* ---------- Pure math ---------- */
+export const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+export const lerp = (a, b, t) => a + (b - a) * t;
+export const mapRange = (v, a, b, c, d) => c + (v - a) * (d - c) / (b - a || 1e-9);
+export const wrapDeg = (v) => { const r = v % 360; return r < 0 ? r + 360 : r; };
+export const wrapPi = (v) => { const r = v % (2 * Math.PI); return r < 0 ? r + 2 * Math.PI : r; };
+export const deg2rad = (d) => d * Math.PI / 180;
+export const rad2deg = (r) => r * 180 / Math.PI;
+export const haversineKm = (lat1, lon1, lat2, lon2) => {
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
-  const R = 6371000; // Earth mean radius (m)
-  const R_MI = 3958.8; // Earth radius (mi)
-  const DEG = Math.PI / 180;
-  const RAD = 180 / Math.PI;
-
-  /* ---------- Unit system state ---------- */
-
-  let units = 'metric'; // 'metric' | 'imperial'
-
-  const listeners = new Set();
-
-  function setUnits(u) {
-    units = u === 'imperial' ? 'imperial' : 'metric';
-    listeners.forEach(fn => fn(units));
-  }
-
-  function onUnitsChange(fn) { listeners.add(fn); }
-  function offUnitsChange(fn) { listeners.delete(fn); }
-
-  function getUnits() { return units; }
-
-  /* ---------- Unit conversion ---------- */
-
-  function toImperialDistance(m) {
-    if (units === 'imperial') return m / 1609.344; // m → mi
-    return m;
-  }
-
-  function toImperialDistanceFt(m) {
-    if (units === 'imperial') return m / 0.3048; // m → ft
-    return m;
-  }
-
-  function toImperialSpeed(mps) {
-    if (units === 'imperial') return mps * 2.23694; // m/s → mph
-    return mps;
-  }
-
-  function toImperialSpeedFpm(mps) {
-    if (units === 'imperial') return mps * 196.85; // m/s → ft/min
-    return mps;
-  }
-
-  function toImperialAltitude(m) {
-    if (units === 'imperial') return m / 0.3048; // m → ft
-    return m;
-  }
-
-  function toImperialPressure(hpa) {
-    if (units === 'imperial') return hpa * 0.02953; // hPa → inHg
-    return hpa;
-  }
-
-  function toImperialTemp(c) {
-    if (units === 'imperial') return c * 9/5 + 32; // °C → °F
-    return c;
-  }
-
-  function toImperialAccel(ms2) {
-    if (units === 'imperial') return ms2 / 0.3048; // m/s² → ft/s²
-    return ms2;
-  }
-
-  // Pressure: return both metric and imperial strings
-  function pressureStr(hpa) {
-    const metric = hpa.toFixed(1) + ' hPa';
-    if (units === 'imperial') return (hpa * 0.02953).toFixed(2) + ' inHg';
-    return metric;
-  }
-
-  function altitudeStr(m) {
-    if (units === 'imperial') {
-      const ft = m / 0.3048;
-      return ft.toFixed(1) + ' ft';
+/* ---------- Unit formatting ---------- */
+const M_PER_FT = 0.3048;
+const HPA_PER_INHG = 33.8639;
+export function formatUnit(value, kind, system = "metric") {
+  if (value == null || !isFinite(value)) return "—";
+  switch (kind) {
+    case "length": {
+      const m = value;
+      if (system === "imperial") return (m / M_PER_FT).toFixed(1) + " ft";
+      return m.toFixed(1) + " m";
     }
-    return m.toFixed(1) + ' m';
-  }
-
-  function altitudeShort(m) {
-    if (units === 'imperial') {
-      const ft = m / 0.3048;
-      return ft.toFixed(0) + ' ft';
+    case "lengthShort": {
+      const m = value;
+      if (system === "imperial") return (m / M_PER_FT).toFixed(1) + " ft";
+      return m.toFixed(0) + " m";
     }
-    return m.toFixed(0) + ' m';
-  }
-
-  function speedStr(mps) {
-    if (units === 'imperial') {
-      const mph = mps * 2.23694;
-      return mph.toFixed(1) + ' mph';
+    case "speed": {
+      const ms = value;
+      if (system === "imperial") return (ms * 3.28084).toFixed(1) + " ft/s";
+      return (ms * 3.6).toFixed(1) + " km/h";
     }
-    return (mps * 3.6).toFixed(1) + ' km/h';
-  }
-
-  function distanceStr(m) {
-    if (units === 'imperial') {
-      const mi = m / 1609.344;
-      return mi.toFixed(2) + ' mi';
+    case "speedShort": {
+      const ms = value;
+      if (system === "imperial") return (ms * 3.28084).toFixed(1) + " ft/s";
+      return ms.toFixed(1) + " m/s";
     }
-    const km = m / 1000;
-    return km.toFixed(2) + ' km';
-  }
-
-  function accelStr(ms2) {
-    if (units === 'imperial') {
-      return (ms2 / 0.3048).toFixed(2) + ' ft/s²';
+    case "accel": {
+      const ms2 = value;
+      if (system === "imperial") return (ms2 / 9.80665).toFixed(3) + " g";
+      return ms2.toFixed(2) + " m/s²";
     }
-    return ms2.toFixed(2) + ' m/s²';
-  }
-
-  function accelG(ms2) {
-    return ms2 / 9.80665;
-  }
-
-  function tempStr(c) {
-    const f = c * 9/5 + 32;
-    if (units === 'imperial') return f.toFixed(1) + ' °F';
-    return c.toFixed(1) + ' °C';
-  }
-
-  /* ---------- Format value + unit ---------- */
-
-  function formatUnit(value, type) {
-    switch (type) {
-      case 'distance': return distanceStr(value);
-      case 'speed': return speedStr(value);
-      case 'altitude': return altitudeStr(value);
-      case 'altitude-short': return altitudeShort(value);
-      case 'pressure': return pressureStr(value);
-      case 'temperature': return tempStr(value);
-      case 'acceleration': return accelStr(value);
-      case 'g-force': return (value / 9.80665).toFixed(3) + ' g';
-      case 'degrees': return value.toFixed(2) + '°';
-      case 'percent': return value.toFixed(1) + '%';
-      case 'raw': return value.toFixed(2);
-      default: return String(value);
+    case "pressure": {
+      const hpa = value;
+      if (system === "imperial") return (hpa / HPA_PER_INHG).toFixed(2) + " inHg";
+      return hpa.toFixed(1) + " hPa";
     }
-  }
-
-  /* ---------- Time ---------- */
-
-  function getUTCEpochSeconds(date) {
-    return date.getTime() / 1000;
-  }
-
-  function nowUTC() {
-    return new Date();
-  }
-
-  function hmsFromSeconds(s) {
-    s = ((s % 86400) + 86400) % 86400;
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = Math.floor(s % 60);
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-  }
-
-  function minutesSinceMidnight(date) {
-    const d = new Date(date);
-    return d.getUTCSeconds() / 60 + d.getUTCMinutes() + d.getUTCHours() * 60;
-  }
-
-  function timeOfDayLabel(date) {
-    const d = new Date(date);
-    const h = d.getUTCHours();
-    const m = d.getUTCMinutes();
-    const ampm = h < 12 ? 'AM' : 'PM';
-    const h12 = h % 12 || 12;
-    return `${h12}:${String(m).padStart(2,'0')} ${ampm} UTC`;
-  }
-
-  /* ---------- Smoothing (exponential moving average) ---------- */
-
-  function createSmoother(alpha) {
-    let value = 0;
-    return function(input) {
-      value = value === 0 ? input : value + alpha * (input - value);
-      return value;
-    };
-  }
-
-  function smoothArray(arr, window) {
-    if (arr.length < window) return arr.slice();
-    const out = [];
-    let sum = 0;
-    for (let i = 0; i < window; i++) sum += arr[i];
-    out.push(sum / window);
-    for (let i = window; i < arr.length; i++) {
-      sum += arr[i] - arr[i - window];
-      out.push(sum / window);
+    case "pressureShort": {
+      const hpa = value;
+      if (system === "imperial") return (hpa / HPA_PER_INHG).toFixed(2) + " inHg";
+      return hpa.toFixed(1) + " hPa";
     }
-    return out;
-  }
-
-  /* ---------- Haversine distance ---------- */
-
-  function haversine(lat1, lon1, lat2, lon2) {
-    return haversineDist(lat1, lon1, lat2, lon2);
-  }
-
-  function deg2rad(deg) { return deg * DEG; }
-  function rad2deg(rad) { return rad * RAD; }
-
-  function haversineDist(lat1, lon1, lat2, lon2) {
-    const R_ = R;
-    const dLat = (lat2 - lat1) * DEG;
-    const dLon = (lon2 - lon1) * DEG;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*DEG) * Math.cos(lat2*DEG) * Math.sin(dLon/2)**2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R_ * c;
-  }
-
-  /* ---------- Clamp, lerp, map ---------- */
-
-  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
-  function mapRange(v, inLo, inHi, outLo, outHi) {
-    const t = (v - inLo) / (inHi - inLo);
-    return lerp(outLo, outHi, clamp(t, 0, 1));
-  }
-
-  /* ---------- Canvas helpers ---------- */
-
-  function resizeCanvas(canvas) {
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const w = Math.round(rect.width * dpr);
-    const h = Math.round(rect.height * dpr);
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
+    case "temp": {
+      const c = value;
+      if (system === "imperial") return (c * 9 / 5 + 32).toFixed(1) + " °F";
+      return c.toFixed(1) + " °C";
     }
-    return { w, h, dpr, cssW: rect.width, cssH: rect.height };
-  }
-
-  function clearCanvas(ctx, w, h, color) {
-    ctx.fillStyle = color || '#060912';
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  /* ---------- Math constants ---------- */
-
-  const TWO_PI = 2 * Math.PI;
-  const PI = Math.PI;
-
-  /* ---------- Angle normalization ---------- */
-
-  function normAngle(deg) {
-    return ((deg % 360) + 360) % 360;
-  }
-
-  function normRad(rad) {
-    return ((rad % TWO_PI) + TWO_PI) % TWO_PI;
-  }
-
-  /* ---------- Mean of circular quantities ---------- */
-
-  function meanAngle(degArray) {
-    if (degArray.length === 0) return 0;
-    let sumSin = 0, sumCos = 0;
-    for (const d of degArray) {
-      const r = d * DEG;
-      sumSin += Math.sin(r);
-      sumCos += Math.cos(r);
+    case "db": {
+      return value.toFixed(1) + " dB";
     }
-    return Math.atan2(sumSin, sumCos) * RAD;
-  }
-
-  /* ---------- Detect spikes ---------- */
-
-  function detectSpike(history, threshold, window) {
-    if (history.length < window) return null;
-    const recent = history.slice(-window);
-    const mean = recent.reduce((a,b) => a+b, 0) / recent.length;
-    const std = Math.sqrt(recent.reduce((a,b) => a + (b-mean)**2, 0) / recent.length);
-    const latest = history[history.length - 1];
-    if (std > 1e-9 && (latest - mean) > threshold * std) {
-      return { value: latest, mean, std, time: performance.now() };
+    case "microtesla": {
+      return value.toFixed(2) + " µT";
     }
-    return null;
-  }
-
-  /* ---------- Format distance (latitude/longitude) ---------- */
-
-  function formatLatLon(lat, lon, digits) {
-    digits = digits || 6;
-    const latDir = lat >= 0 ? 'N' : 'S';
-    const lonDir = lon >= 0 ? 'E' : 'W';
-    return `${Math.abs(lat).toFixed(digits)}°${latDir}, ${Math.abs(lon).toFixed(digits)}°${lonDir}`;
-  }
-
-  /* ---------- Cross-browser event Listener options ---------- */
-
-  function addListener(el, event, handler, opts) {
-    if (opts && opts.passive === false && el.setPointerCapture) {
-      // For touch events needing preventDefault, use addEventListener with passive:false
-      el.addEventListener(event, handler, opts);
-    } else {
-      el.addEventListener(event, handler, opts || false);
+    case "mstotal": {
+      const m = value;
+      if (system === "imperial") return (m / 1609.344).toFixed(3) + " mi";
+      return m.toFixed(1) + " m";
     }
+    case "alt": {
+      const m = value;
+      if (system === "imperial") return (m / M_PER_FT).toFixed(1) + " ft";
+      return m.toFixed(0) + " m";
+    }
+    case "deg": {
+      const d = value;
+      const dir = ["N","NE","E","SE","S","SW","W","NW"][Math.round(wrapDeg(d) / 45) % 8];
+      return d.toFixed(1) + "° " + dir;
+    }
+    default:
+      return String(value);
   }
+}
 
-  return {
-    setUnits,
-    onUnitsChange,
-    offUnitsChange,
-    getUnits,
-    toImperialDistance,
-    toImperialDistanceFt,
-    toImperialSpeed,
-    toImperialSpeedFpm,
-    toImperialAltitude,
-    toImperialPressure,
-    toImperialTemp,
-    toImperialAccel,
-    pressureStr,
-    altitudeStr,
-    altitudeShort,
-    speedStr,
-    distanceStr,
-    accelStr,
-    accelG,
-    tempStr,
-    formatUnit,
-    getUTCEpochSeconds,
-    nowUTC,
-    hmsFromSeconds,
-    minutesSinceMidnight,
-    timeOfDayLabel,
-    createSmoother,
-    smoothArray,
-    haversineDist,
-    clamp,
-    lerp,
-    mapRange,
-    resizeCanvas,
-    clearCanvas,
-    TWO_PI,
-    PI,
-    DEG,
-    RAD,
-    R,
-    R_MI,
-    normAngle,
-    normRad,
-    meanAngle,
-    detectSpike,
-    formatLatLon,
-    haversine,
-    haversineDist,
-    deg2rad,
-    rad2deg,
-    addListener,
+export function formatSafe(value) {
+  if (value === null || value === undefined || !isFinite(value)) return "—";
+  return String(value);
+}
+
+/* ---------- Smoothing ---------- */
+export class EMA {
+  constructor(alpha = 0.5) { this.alpha = alpha; this.value = 0; this.initialized = false; }
+  update(v) {
+    if (!this.initialized) { this.value = v; this.initialized = true; return v; }
+    this.value = this.alpha * v + (1 - this.alpha) * this.value;
+    return this.value;
+  }
+  get() { return this.initialized ? this.value : 0; }
+  reset() { this.value = 0; this.initialized = false; }
+}
+
+export class OneEuroFilter {
+  constructor(minCutoff = 0.2, beta = 1.0) {
+    this.x = new EMA(1 - Math.exp(-2 * Math.PI * minCutoff));
+    this.dx = new EMA(1 - Math.exp(-2 * Math.PI * (minCutoff + beta)));
+    this.lastTime = 0;
+    this.prevX = 0;
+    this.initialized = false;
+  }
+  update(x, ts) {
+    if (!this.initialized) { this.prevX = x; this.initialized = true; return x; }
+    const dt = ts === 0 ? 0.01 : 1 / ts;
+    const est = this.x.update(x);
+    const edx = this.dx.update((x - this.prevX) / dt);
+    this.prevX = x;
+    return est;
+  }
+}
+
+/* ---------- Ring buffer ---------- */
+export class RingBuffer {
+  constructor(capacity) { this.capacity = capacity; this.buf = new Array(capacity); this.len = 0; this.pos = 0; }
+  push(v) { this.buf[this.pos] = v; this.pos = (this.pos + 1) % this.capacity; if (this.len < this.capacity) this.len++; }
+  get(i) { if (this.len === 0) return null; const idx = (this.pos - this.len + i + this.capacity) % this.capacity; return this.buf[idx]; }
+  getLast() { return this.len === 0 ? null : this.buf[(this.pos - 1 + this.capacity) % this.capacity]; }
+  clear() { this.len = 0; this.pos = 0; this.buf.fill(0); }
+  toArray() { const a = new Array(this.len); for (let i = 0; i < this.len; i++) a[i] = this.get(i); return a; }
+  get max() { if (this.len === 0) return 0; let m = -Infinity; for (let i = 0; i < this.len; i++) { const v = this.get(i); if (isFinite(v) && v > m) m = v; } return m; }
+  get min() { if (this.len === 0) return 0; let m = Infinity; for (let i = 0; i < this.len; i++) { const v = this.get(i); if (isFinite(v) && v < m) m = v; } return m; }
+  get mean() { if (this.len === 0) return 0; let s = 0; for (let i = 0; i < this.len; i++) s += this.get(i); return s / this.len; }
+}
+
+/* ---------- Throttle/debounce ---------- */
+export function throttle(fn, ms) {
+  let last = 0, pending = null;
+  return (...args) => {
+    const now = Date.now();
+    const remaining = ms - (now - last);
+    if (remaining <= 0) { last = now; fn(...args); }
+    else if (!pending) { pending = setTimeout(() => { last = Date.now(); pending = null; fn(...args); }, remaining); }
   };
-})();
+}
 
-export default Utils;
+export function debounce(fn, ms) {
+  let t = null;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+/* ---------- Safe storage ---------- */
+export const safeStorage = {
+  get(key, def) {
+    try {
+      const v = localStorage.getItem(key);
+      if (v == null) return def;
+      return JSON.parse(v);
+    } catch (_) { return def; }
+  },
+  set(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (_) { return false; }
+  }
+};
+
+/* ---------- Tween ---------- */
+export function tween(el, from, to, dur = 150, opts = {}) {
+  if (!el) return;
+  const start = performance.now();
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) { el.textContent = to; return; }
+  (function step(t) {
+    const p = clamp((t - start) / dur, 0, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = (from + (to - from) * eased).toFixed(opts.decimals ?? 1);
+    if (p < 1) requestAnimationFrame(step);
+  })(start);
+}
+
+/* ---------- Format number with fixed decimals ---------- */
+export function fmtNum(v, decimals = 1) {
+  if (v == null || !isFinite(v)) return "—";
+  return Number(v.toFixed(decimals));
+}
+
+/* ---------- Angle helpers ---------- */
+export function angleDelta(a, b) {
+  let d = wrapDeg(b - a);
+  if (d > 180) d -= 360;
+  return d;
+}
+export function absAngleDelta(a, b) {
+  return Math.abs(angleDelta(a, b));
+}
+
+/* ---------- Unique id ---------- */
+export let uid = 0;
+export function uidGen() { return "fi-" + (uid++); }
+
+/* ============================================================
+   fitCanvas — THE canonical HiDPI routine.
+   Reads getBoundingClientRect; if 0x0 (hidden) returns null.
+   Sets canvas.width/height to rect * dpr (capped at 3).
+   Uses ctx.setTransform(dpr,0,0,dpr,0,0) — NOT ctx.scale.
+   Returns { ctx, w (CSS px), h (CSS px), dpr }.
+   ============================================================ */
+export function fitCanvas(canvas) {
+  if (!canvas || !canvas.getContext) return null;
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+  if (w <= 0 || h <= 0) return null;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  return { ctx, w, h, dpr };
+}
+
+/* ============================================================
+   observeCanvas — ResizeObserver per canvas + window resize
+   fallback. Re-runs fitCanvas and calls cb whenever the
+   canvas size changes.
+   ============================================================ */
+const activeObservers = new WeakMap();
+
+export function observeCanvas(canvas, cb, opts = {}) {
+  if (!canvas) return;
+  if (activeObservers.has(canvas)) {
+    const obs = activeObservers.get(canvas);
+    obs.disconnect();
+  }
+  const debouncedCb = debounce(() => {
+    if (!document.contains(canvas)) return;
+    const info = fitCanvas(canvas);
+    if (info) cb(info);
+  }, 60);
+  let ro = null;
+  if (typeof ResizeObserver !== "undefined") {
+    ro = new ResizeObserver(() => debouncedCb());
+    ro.observe(canvas);
+  } else {
+    window.addEventListener("resize", debouncedCb);
+  }
+  const info = fitCanvas(canvas);
+  if (info) cb(info);
+  activeObservers.set(canvas, {
+    disconnect() {
+      if (ro) try { ro.disconnect(); } catch (_) {}
+      window.removeEventListener("resize", debouncedCb);
+      activeObservers.delete(canvas);
+    }
+  });
+}

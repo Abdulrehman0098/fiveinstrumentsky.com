@@ -1,33 +1,39 @@
 /* ============================================================
-   scripts/sensor-bus.js — Event bus for cross-instrument events
+   sensor-bus.js — tiny pub/sub with sticky last-value cache
    ============================================================ */
 
-export class SensorBus {
-  constructor() {
-    this._listeners = {};
-  }
+const handlers = new Map();
+const lastValues = new Map();
+let cbId = 0;
 
-  on(event, handler) {
-    if (!this._listeners[event]) {
-      this._listeners[event] = [];
-    }
-    this._listeners[event].push(handler);
-  }
+export const SensorBus = {
+  on(type, fn) {
+    if (!handlers.has(type)) handlers.set(type, new Set());
+    handlers.get(type).add(fn);
+    return () => this.off(type, fn);
+  },
 
-  off(event, handler) {
-    if (!this._listeners[event]) return;
-    this._listeners[event] = this._listeners[event].filter(h => h !== handler);
-  }
+  off(type, fn) {
+    const set = handlers.get(type);
+    if (set) { set.delete(fn); if (set.size === 0) handlers.delete(type); }
+  },
 
-  emit(event, data) {
-    if (!this._listeners[event]) return;
-    const handlers = this._listeners[event];
-    for (let i = handlers.length - 1; i >= 0; i--) {
-      try {
-        handlers[i](data);
-      } catch (e) {
-        console.warn(`[SensorBus] handler for '${event}' threw:`, e);
-      }
-    }
+  once(type, fn) {
+    const unsub = this.on(type, (v) => { fn(v); unsub(); });
+  },
+
+  emit(type, value) {
+    lastValues.set(type, value);
+    const set = handlers.get(type);
+    if (set) for (const fn of set) { try { fn(value); } catch (e) {} }
+  },
+
+  getLast(type) {
+    return lastValues.get(type);
+  },
+
+  clear() {
+    handlers.clear();
+    lastValues.clear();
   }
-}
+};

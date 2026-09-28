@@ -1,562 +1,268 @@
 /* ============================================================
-   main.js — FIELD INSTRUMENTS app entry, router, sensor bus,
-             shared state, lazy-load instruments
+   main.js — app bootstrapping, tab switching, diagnostics,
+   install prompt, service worker, wake lock.
+   First statement sets window.__FI_BOOTED.
    ============================================================ */
+import { Diagnostics } from "./diagnostics.js";
 
-import Permissions from './permissions.js';
-import Theme from './theme.js';
-import Utils from './utils.js';
-import { bus } from './sensor-bus.js';
-import Galaxy from './galaxy.js';
+window.__FI_BOOTED = true;
 
-/* ============================================================
-   SENSOR BUS — lightweight pub/sub
-   ============================================================ */
-
-const SensorBus = {
-  _listeners: new Map(),
-
-  on(event, handler) {
-    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
-    this._listeners.get(event).add(handler);
+const errorLog = {
+  entries: [],
+  MAX: 50,
+  push(type, message, source, lineno, colno) {
+    if (this.entries.length >= this.MAX) this.entries.shift();
+    this.entries.push({ type, message: message || String(message), source: source || "", lineno: lineno || 0, colno: colno || 0, ts: new Date().toISOString() });
   },
-
-  off(event, handler) {
-    if (this._listeners.has(event)) {
-      this._listeners.get(event).delete(handler);
-      if (this._listeners.get(event).size === 0) this._listeners.delete(event);
-    }
-  },
-
-  emit(event, data) {
-    if (this._listeners.has(event)) {
-      // Use a snapshot to allow handler removal during iteration
-      const handlers = Array.from(this._listeners.get(event));
-      for (const h of handlers) {
-        try { h(data); } catch (e) { console.warn('[SensorBus] handler error:', e); }
-      }
-    }
-  },
-
-  once(event, handler) {
-    const wrapper = (data) => {
-      this.off(event, wrapper);
-      handler(data);
-    };
-    this.on(event, wrapper);
-  },
+  getAll() { return this.entries.slice(); }
 };
 
-/* ============================================================
-   SHARED STATE
-   ============================================================ */
+window.addEventListener("error", (e) => {
+  errorLog.push("error", e.message, e.filename || "", e.lineno || 0, e.colno || 0);
+  toast(`Error: ${e.message}`, "warning");
+});
 
-const state = {
-  get units() { return state._units; },
-  set units(v) {
-    state._units = v;
-    state._initialized = true;
-    window.dispatchEvent(new CustomEvent('unitschange', { detail: v }));
-  },
-  _units: 'metric',
-  _initialized: false,
-  theme: 'dark',
-  activeTab: 'stars',
-  location: null, // { lat, lon, accuracy, timestamp }
-  orientationData: null, // { alpha, beta, gamma, absolute }
-  motionData: null, // { accelerationIncludingGravity, rotationRate, timestamp }
-  gpsWatchId: null,
-  caps: null,
-};
+window.addEventListener("unhandledrejection", (e) => {
+  errorLog.push("unhandledrejection", e.reason ? String(e.reason) : "unhandled rejection", "", 0, 0);
+  toast(`Unhandled: ${e.reason ? String(e.reason) : "unknown"}`, "warning");
+});
 
-export { state };
+function toast(msg, type = "info", duration = 4000) {
+  const region = document.getElementById("toast-region");
+  if (!region) return;
+  const el = document.createElement("div");
+  el.className = "toast";
+  if (type === "warning") el.style.borderColor = "rgba(239,68,68,0.4)";
+  if (type === "error") el.style.borderColor = "rgba(239,68,68,0.6)";
+  el.textContent = msg;
+  region.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, duration);
+}
 
-/* ============================================================
-   DIAGNOSTICS PANEL
-   ============================================================ */
+const moduleCache = new Map();
 
-let diagnosticsOpen = false;
-
-function updateDiagnostics() {
-  const capList = document.getElementById('diagnostics-capabilities');
-  const permList = document.getElementById('diagnostics-permissions');
-  const locEl = document.getElementById('diagnostics-location');
-  const copyBtn = document.getElementById('diagnostics-copy-location');
-  const instList = document.getElementById('diagnostics-instruments');
-
-  if (!capList || !permList || !locEl) return;
-
-  // Capabilities
-  const caps = Permissions.detectCapabilities();
-  state.caps = caps;
-  capList.innerHTML = '';
-  const capItems = [
-    ['Accelerometer (DeviceMotion)', caps.hasMotion],
-    ['Magnetometer', caps.hasMagnetometer],
-    ['Barometer / PressureSensor', caps.hasPressureSensor],
-    ['GPS / Geolocation', caps.hasGeolocation],
-    ['Microphone (getUserMedia)', caps.hasMicrophone],
-    ['DeviceOrientation', caps.hasOrientation],
-  ];
-  for (const [name, ok] of capItems) {
-    const li = document.createElement('li');
-    li.innerHTML = `<span class="dot ${ok ? 'green' : 'gray'}"></span>${name}${ok ? '' : ' — not available'}`;
-    capList.appendChild(li);
-  }
-
-  // Permissions
-  const permState = Permissions.allPermissions();
-  permList.innerHTML = '';
-  const permItems = [
-    ['Orientation', permState.orientation],
-    ['Motion', permState.motion],
-    ['Microphone', permState.microphone],
-    ['Geolocation', permState.geolocation],
-  ];
-  const permLabels = { granted: 'Granted', denied: 'Denied', unknown: 'Unknown', unsupported: 'Unsupported' };
-  for (const [name, st] of permItems) {
-    const li = document.createElement('li');
-    const color = st === 'granted' ? 'green' : st === 'denied' ? 'red' : st === 'unknown' ? 'yellow' : 'gray';
-    li.innerHTML = `<span class="dot ${color}"></span>${name}: ${permLabels[st] || st}`;
-    permList.appendChild(li);
-  }
-
-  // Location
-  if (state.location) {
-    const { lat, lon, accuracy } = state.location;
-    const accUnit = Utils.getUnits() === 'imperial' ? 'ft' : 'm';
-    const accVal = Utils.getUnits() === 'imperial' ? accuracy * 3.28084 : accuracy;
-    locEl.innerHTML = `
-      <span class="diagnostics-muted">Lat/Lon:</span>
-      <span class="text-mono">${Utils.formatLatLon(lat, lon, 8)}</span>
-      <span class="diagnostics-muted">accuracy ±${accVal.toFixed(0)} ${accUnit}</span>
-      <span class="diagnostics-muted">| timestamp: ${new Date(state.location.timestamp).toISOString()}</span>
-    `;
-    copyBtn.style.display = 'inline-block';
-  } else {
-    locEl.innerHTML = '<span class="diagnostics-muted">No location yet — open Star Finder and grant GPS access.</span>';
-    copyBtn.style.display = 'none';
-  }
-
-  // Instrumentation status
-  instList.innerHTML = '';
-  const tabState = [
-    ['Stars', state.activeTab === 'stars' ? 'Active' : 'Loaded'],
-    ['Sound', state.activeTab === 'sound' ? 'Active' : 'Loaded'],
-    ['Vibration', state.activeTab === 'vibration' ? 'Active' : 'Loaded'],
-    ['Magnetic', state.activeTab === 'magnetic' ? 'Active' : 'Loaded'],
-    ['Altimeter', state.activeTab === 'altimeter' ? 'Active' : 'Loaded'],
-  ];
-  for (const [name, status] of tabState) {
-    const li = document.createElement('li');
-    const color = status === 'Active' ? 'green' : 'gray';
-    li.innerHTML = `<span class="dot ${color}"></span>${name}: ${status}`;
-    instList.appendChild(li);
+async function loadInstrument(name) {
+  if (moduleCache.has(name)) return moduleCache.get(name);
+  try {
+    const mod = await import("./instruments/" + name + ".js");
+    const inst = mod[name.charAt(0).toUpperCase() + name.slice(1)] || mod;
+    moduleCache.set(name, inst);
+    return inst;
+  } catch (e) {
+    errorLog.push("import-error", "Failed to load " + name + " : " + (e.message || ""), "", 0, 0);
+    toast("Failed to load " + name + " instrument.", "error");
+    return null;
   }
 }
 
-function toggleDiagnostics() {
-  diagnosticsOpen = !diagnosticsOpen;
-  const content = document.getElementById('diagnostics-content');
-  const toggle = document.getElementById('diagnostics-toggle');
-  if (content) content.hidden = !diagnosticsOpen;
-  if (toggle) toggle.setAttribute('aria-expanded', diagnosticsOpen ? 'true' : 'false');
-  if (diagnosticsOpen) updateDiagnostics();
-}
+let currentInstrument = null;
+let previousInstrument = null;
+const instrumentStates = new Map();
 
-/* ============================================================
-   HTTPS GUARD
-   ============================================================ */
-
-function checkHTTPS() {
-  const isSecure = window.location.protocol === 'https:' ||
-                   window.location.hostname === 'localhost' ||
-                   window.location.hostname === '127.0.0.1';
-  const banner = document.getElementById('insecure-banner');
-  if (banner) {
-    banner.classList.toggle('hidden', isSecure);
-  }
-  return isSecure;
-}
-
-/* ============================================================
-   VIEWPORT LOCK — iOS Safari pinch/double-tap prevention
-   ============================================================ */
-
-function installViewportLock() {
-  const html = document.documentElement;
-  const body = document.body;
-
-  // CSS-based lock (already in meta, but reinforce via JS)
-  const meta = document.querySelector('meta[name="viewport"]');
-  if (meta) {
-    const content = meta.getAttribute('content') || '';
-    if (!content.includes('maximum-scale=1.0')) {
-      meta.setAttribute('content',
-        'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover'
-      );
-    }
-  }
-
-  // Touch + gesture handlers — passive:false so preventDefault works
-  let lastTouchEnd = 0;
-  let pinchStartDist = 0;
-  let pinchStartScale = 1;
-
-  function preventDefault(e) { e.preventDefault(); }
-
-  // Double-tap prevention
-  body.addEventListener('touchend', (e) => {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 300) {
-      e.preventDefault();
-    }
-    lastTouchEnd = now;
-  }, { passive: false });
-
-  // iOS gesture events
-  if (typeof document.documentElement.gesturestart !== 'undefined') {
-    document.addEventListener('gesturestart', preventDefault, { passive: false });
-  }
-  if (typeof document.documentElement.gesturechange !== 'undefined') {
-    document.addEventListener('gesturechange', preventDefault, { passive: false });
-  }
-  if (typeof document.documentElement.gestureend !== 'undefined') {
-    document.addEventListener('gestureend', preventDefault, { passive: false });
-  }
-
-  // Multi-touch pinch detection on touchmove
-  body.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 1) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchStartDist = Math.sqrt(dx * dx + dy * dy);
-      if (window.visualViewport) {
-        pinchStartScale = window.visualViewport.scale;
-      }
-      e.preventDefault();
-    }
-  }, { passive: false });
-
-  // Wheel with ctrl/meta (zoom attempt)
-  body.addEventListener('wheel', (e) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-    }
-  }, { passive: false });
-
-  // Visual viewport scale reset
-  if (window.visualViewport) {
-    let resizeTimer = null;
-    window.visualViewport.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        if (window.visualViewport.scale !== 1) {
-          window.visualViewport.scale = 1;
-        }
-      }, 50);
-    });
-    window.visualViewport.addEventListener('scroll', () => {
-      if (window.visualViewport.scale !== 1) {
-        window.visualViewport.scale = 1;
-      }
-    });
+async function activateInstrument(name) {
+  const inst = await loadInstrument(name);
+  if (!inst) return;
+  try {
+    if (typeof inst.activate === "function") await inst.activate();
+    instrumentStates.set(name, { active: true, kind: inst.kind });
+    Loop.setActive(name);
+  } catch (e) {
+    errorLog.push("activate-error", name + " activate failed: " + (e.message || ""), "", 0, 0);
+    toast(name + " instrument failed to start. " + (e.message || ""), "error");
+    const panel = document.getElementById("panel-" + name);
+    if (panel) { const chip = panel.querySelector(".mode-chip"); if (chip) chip.dataset.mode = "error"; }
   }
 }
 
-/* ============================================================
-   TAB ROUTER
-   ============================================================ */
-
-let activeInstrument = null;
-const instrumentModules = new Map();
-
-async function switchTab(tabId) {
-  // Update URL hash
-  if (location.hash !== '#' + tabId) {
-    history.replaceState(null, '', '#' + tabId);
+async function deactivateInstrument(name) {
+  const inst = instrumentStates.get(name);
+  if (!inst || !inst.active) return;
+  try {
+    const mod = await loadInstrument(name);
+    if (mod && typeof mod.deactivate === "function") await mod.deactivate();
+    instrumentStates.set(name, { active: false, kind: mod ? mod.kind : undefined });
+    Loop.setActive(null);
+  } catch (e) {
+    errorLog.push("deactivate-error", name + " deactivate failed: " + (e.message || ""), "", 0, 0);
   }
+}
 
-  // Update UI
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    const isActive = btn.dataset.tab === tabId;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+const panels = Array.from(document.querySelectorAll(".instrument-panel"));
+
+function updateTabIndicator(activeTab) {
+  const indicator = document.querySelector(".tab-indicator");
+  if (!indicator || !activeTab) return;
+  const parent = activeTab.parentElement;
+  if (!parent) return;
+  const rect = activeTab.getBoundingClientRect();
+  const parentRect = parent.getBoundingClientRect();
+  const left = rect.left - parentRect.left + parentRect.width / 2 - 32;
+  indicator.style.left = left + "px";
+}
+
+function setActiveTab(name) {
+  for (const btn of tabButtons) {
+    const isActive = btn.dataset.tab === name;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    btn.tabIndex = isActive ? 0 : -1;
+  }
+  for (const panel of panels) {
+    const isPanel = panel.dataset.tab === name;
+    panel.classList.toggle("hidden", !isPanel);
+    panel.classList.toggle("active", isPanel);
+  }
+  updateTabIndicator(tabButtons.find(b => b.dataset.tab === name));
+  window.dispatchEvent(new Event("resize"));
+  if (previousInstrument) deactivateInstrument(previousInstrument).catch(() => {});
+  if (name !== previousInstrument) previousInstrument = currentInstrument;
+  currentInstrument = name;
+  activateInstrument(name).catch(() => {});
+  Diagnostics.updateInstrumentState(name);
+}
+
+for (const btn of tabButtons) {
+  btn.addEventListener("click", () => {
+    const name = btn.dataset.tab;
+    if (name && currentInstrument !== name) setActiveTab(name);
+    if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
   });
+  btn.addEventListener("keydown", (e) => {
+    const tabs = tabButtons;
+    const idx = tabs.indexOf(btn);
+    if (e.key === "ArrowRight") { e.preventDefault(); const next = tabs[(idx + 1) % tabs.length]; next.focus(); if (currentInstrument !== next.dataset.tab) setActiveTab(next.dataset.tab); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); const prev = tabs[(idx - 1 + tabs.length) % tabs.length]; prev.focus(); if (currentInstrument !== prev.dataset.tab) setActiveTab(prev.dataset.tab); }
+    else if (e.key === "Home") { e.preventDefault(); const first = tabs[0]; first.focus(); if (currentInstrument !== first.dataset.tab) setActiveTab(first.dataset.tab); }
+    else if (e.key === "End") { e.preventDefault(); const last = tabs[tabs.length - 1]; last.focus(); if (currentInstrument !== last.dataset.tab) setActiveTab(last.dataset.tab); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const name = btn.dataset.tab; if (name && currentInstrument !== name) setActiveTab(name); }
+  });
+}
 
-  document.querySelectorAll('.instrument-panel').forEach(p => p.classList.add('hidden'));
-  const panel = document.getElementById('panel-' + tabId);
-  if (panel) panel.classList.remove('hidden');
+window.addEventListener("hashchange", () => {
+  const hash = location.hash.replace("#", "");
+  const valid = ["stars", "sound", "vibration", "magnetic", "altimeter"];
+  if (hash && valid.includes(hash) && currentInstrument !== hash) setActiveTab(hash);
+});
 
-  // Force canvas recalculation on tab switch
-  window.dispatchEvent(new Event('resize'));
+(function initHash() {
+  const hash = location.hash.replace("#", "");
+  const defaultTab = hash && ["stars", "sound", "vibration", "magnetic", "altimeter"].includes(hash) ? hash : "stars";
+  for (const btn of tabButtons) {
+    const isActive = btn.dataset.tab === defaultTab;
+    btn.classList.toggle("active", isActive);
+    btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    btn.tabIndex = isActive ? 0 : -1;
+  }
+  for (const panel of panels) {
+    const isPanel = panel.dataset.tab === defaultTab;
+    panel.classList.toggle("hidden", !isPanel);
+    panel.classList.toggle("active", isPanel);
+  }
+  updateTabIndicator(tabButtons.find(b => b.dataset.tab === defaultTab));
+  currentInstrument = defaultTab;
+  previousInstrument = null;
+  window.dispatchEvent(new Event("resize"));
+  activateInstrument(defaultTab).catch(() => {});
+})();
 
-  state.activeTab = tabId;
+const unitBtn = document.getElementById("unit-toggle-btn");
+unitBtn.addEventListener("click", () => {
+  toggleUnits();
+  const isImperial = Units.system === "imperial";
+  unitBtn.setAttribute("data-unit", isImperial ? "imperial" : "metric");
+  const label = unitBtn.querySelector(".label");
+  if (label) label.textContent = isImperial ? "IMPERIAL" : "METRIC";
+});
 
-  // Lazy-load instrument module
-  if (!instrumentModules.has(tabId)) {
+const demoBtn = document.getElementById("demo-toggle-btn");
+demoBtn.addEventListener("click", () => {
+  Demo.setEnabled(!Demo.isEnabled());
+  demoBtn.setAttribute("aria-pressed", Demo.isEnabled() ? "true" : "false");
+  const label = demoBtn.querySelector(".label");
+  if (label) label.textContent = Demo.isEnabled() ? "DEMO ON" : "DEMO OFF";
+  for (const panel of panels) {
+    const chip = panel.querySelector(".mode-chip");
+    const badge = panel.querySelector(".sim-badge");
+    if (Demo.isEnabled()) { if (chip) chip.dataset.mode = "demo"; if (badge) badge.classList.remove("hidden"); }
+    else { if (chip) chip.dataset.mode = "idle"; if (badge) badge.classList.add("hidden"); }
+  }
+  toast(Demo.isEnabled() ? "Demo mode enabled — sensor data is simulated." : "Demo mode disabled.", "info");
+});
+
+const themeBtn = document.getElementById("theme-toggle-btn");
+if (themeBtn) {
+  themeBtn.addEventListener("click", () => {
+    Theme.cycle();
+    const label = themeBtn.querySelector(".label");
+    if (label) label.textContent = Theme.getCycleLabel();
+    toast("Theme: " + Theme.current, "info");
+  });
+  themeBtn.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); themeBtn.click(); } });
+}
+
+const installBtn = document.getElementById("install-btn");
+let beforeInstallPromptEvent = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  beforeInstallPromptEvent = e;
+  installBtn.classList.remove("hidden");
+  installBtn.addEventListener("click", async () => {
     try {
-      let mod;
-      switch (tabId) {
-        case 'stars': mod = await import('./instruments/stars.js'); break;
-        case 'sound': mod = await import('./instruments/sound.js'); break;
-        case 'vibration': mod = await import('./instruments/vibration.js'); break;
-        case 'magnetic': mod = await import('./instruments/magnetic.js'); break;
-        case 'altimeter': mod = await import('./instruments/altimeter.js'); break;
-        default: mod = null;
+      if (beforeInstallPromptEvent) {
+        beforeInstallPromptEvent.prompt();
+        const { outcome } = await beforeInstallPromptEvent.userChoice;
+        toast(outcome === "accepted" ? "App installed." : "Install dismissed.", "info");
+        beforeInstallPromptEvent = null;
       }
-      if (mod) instrumentModules.set(tabId, mod);
-    } catch (err) {
-      console.error(`[main] Failed to load instrument ${tabId}:`, err);
-    }
-  }
+    } catch (_) { toast("Install not available on this browser.", "warning"); }
+  }, { once: true });
+});
 
-  const mod = instrumentModules.get(tabId);
-  if (mod && mod.init) {
-    if (activeInstrument && activeInstrument.destroy) {
-      try { activeInstrument.destroy(); } catch (_) {}
-    }
-    activeInstrument = mod;
-    try { mod.init(state, SensorBus, Utils, Permissions); } catch (err) {
-      console.error(`[main] Instrument ${tabId} init error:`, err);
-    }
-  } else if (mod && mod.activate) {
-    try { mod.activate(state, SensorBus, Utils, Permissions); } catch (err) {
-      console.error(`[main] Instrument ${tabId} activate error:`, err);
-    }
-  }
+let wakeLock = null;
+async function acquireWakeLock() {
+  if (!navigator.wakeLock || document.hidden) return;
+  try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } catch (_) {}
+}
+async function releaseWakeLock() {
+  if (wakeLock) { try { wakeLock.release(); } catch (_) {} wakeLock = null; }
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) releaseWakeLock(); });
+setInterval(() => { if (currentInstrument && !document.hidden && navigator.wakeLock) acquireWakeLock().catch(() => {}); }, 5000);
 
-  updateDiagnostics();
+if (location.protocol === "http:" || location.protocol === "https:") {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js", { scope: "./" }).then(reg => {
+      if (reg.waiting) toast("Update available — reload to apply.", "info");
+    }).catch(() => {});
+  }
 }
 
-/* ============================================================
-   UNIT TOGGLE
-   ============================================================ */
+import("./galaxy.js").then(({ bootGalaxy, observeGalaxy }) => { bootGalaxy(); observeGalaxy(); }).catch(() => {});
 
-function setupUnitToggle() {
-  const btn = document.getElementById('unit-toggle-btn');
-  const labels = document.querySelectorAll('.switch-label');
-
-  function updateUI() {
-    const isImperial = state.units === 'imperial';
-    btn.setAttribute('aria-pressed', isImperial ? 'true' : 'false');
-    btn.setAttribute('data-unit', isImperial ? 'imperial' : 'metric');
-    labels.forEach(l => {
-      const isActive = l.dataset.unit === state.units;
-      l.classList.toggle('active', isActive);
-    });
-  }
-
-  btn.addEventListener('click', () => {
-    state.units = state.units === 'metric' ? 'imperial' : 'metric';
-    Utils.setUnits(state.units);
-    updateUI();
-    SensorBus.emit('unitschange', state.units);
-    updateDiagnostics();
-  });
-
-  Utils.onUnitsChange((u) => {
-    state.units = u;
-    updateUI();
-  });
-
-  updateUI();
-}
-
-/* ============================================================
-   THEME TOGGLE
-   ============================================================ */
-
-function setupThemeToggle() {
-  Theme.loadSaved();
-  const btn = document.getElementById('theme-toggle-btn');
-  btn.addEventListener('click', () => {
-    Theme.toggle();
-    const isLight = Theme.get() === 'light';
-    btn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
-    btn.setAttribute('data-theme', isLight ? 'light' : 'dark');
-    document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
-  });
-  window.addEventListener('themechange', () => {
-    const isLight = Theme.get() === 'light';
-    if (btn) {
-      btn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
-      btn.setAttribute('data-theme', isLight ? 'light' : 'dark');
-    }
-    document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
-    updateDiagnostics();
-  });
-}
-
-/* ============================================================
-   TAB BAR WIRING
-   ============================================================ */
-
-function setupTabBar() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tabId = btn.dataset.tab;
-      if (tabId && tabId !== state.activeTab) {
-        switchTab(tabId);
+async function autoDemo() {
+  setTimeout(async () => {
+    const results = {};
+    let anyAvailable = false;
+    try { const g = await Permissions.geolocation(); results.geolocation = g; if (g === "granted") anyAvailable = true; } catch (_) { results.geolocation = "unsupported"; }
+    try { const m = await Permissions.microphone(); results.microphone = m; if (m === "granted") anyAvailable = true; } catch (_) { results.microphone = "unsupported"; }
+    try { const dm = await Permissions.deviceMotion(); results.deviceMotion = dm; if (dm === "granted") anyAvailable = true; } catch (_) { results.deviceMotion = "unsupported"; }
+    try { const mo = await Permissions.deviceOrientation(); results.deviceOrientation = mo; if (mo === "granted") anyAvailable = true; } catch (_) { results.deviceOrientation = "unsupported"; }
+    try { const mg = await Permissions.magnetometer(); results.magnetometer = mg; if (mg === "granted") anyAvailable = true; } catch (_) { results.magnetometer = "unsupported"; }
+    if (!anyAvailable && !Demo.isEnabled()) {
+      Demo.setEnabled(true);
+      demoBtn.setAttribute("aria-pressed", "true");
+      const label = demoBtn.querySelector(".label");
+      if (label) label.textContent = "DEMO ON";
+      for (const panel of panels) {
+        const chip = panel.querySelector(".mode-chip");
+        const badge = panel.querySelector(".sim-badge");
+        if (chip) chip.dataset.mode = "demo";
+        if (badge) badge.classList.remove("hidden");
       }
-    });
-  });
-}
-
-/* ============================================================
-   GEOLOCATION — shared for all instruments
-   ============================================================ */
-
-function startLocationTracking() {
-  if (state.gpsWatchId !== null) return;
-  const permState = Permissions.getPermission('geolocation');
-  if (permState !== 'granted') {
-    // Try to request it
-    Permissions.requestGeolocation().then(granted => {
-      if (granted) startLocationTracking();
-    });
-    return;
-  }
-
-  Permissions.watchPosition(
-    (pos) => {
-      state.location = {
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        altitude: pos.coords.altitude,
-        altitudeAccuracy: pos.coords.altitudeAccuracy,
-        heading: pos.coords.heading,
-        speed: pos.coords.speed,
-        timestamp: pos.timestamp,
-      };
-      SensorBus.emit('location', state.location);
-    },
-    (err) => {
-      if (err.code === 1) {
-        Permissions.setPermission('geolocation', 'denied');
-        SensorBus.emit('locationdenied');
-      }
+      toast("No sensors available — Demo mode enabled.", "info");
     }
-  ).then(id => { state.gpsWatchId = id; });
+  }, 1500);
 }
 
-/* ============================================================
-   PERMISSION CHANGE ANNOUNCEMENTS (ARIA)
-   ============================================================ */
-
-function setupPermissionAnnouncements() {
-  let previousState = Permissions.allPermissions();
-
-  Permissions.onPermissionChange((permState) => {
-    updateDiagnostics();
-
-    // ARIA live region for screen readers
-    const announcer = document.getElementById('perm-announcer') ||
-      (() => {
-        const el = document.createElement('div');
-        el.id = 'perm-announcer';
-        el.className = 'sr-only';
-        el.setAttribute('aria-live', 'assertive');
-        document.body.appendChild(el);
-        return el;
-      })();
-
-    const changes = [];
-    for (const sensor of ['orientation', 'motion', 'microphone', 'geolocation']) {
-      if (permState[sensor] !== previousState[sensor]) {
-        changes.push(`${sensor}: ${permState[sensor]}`);
-      }
-    }
-    if (changes.length > 0) {
-      announcer.textContent = `Sensor permission changed: ${changes.join(', ')}`;
-    }
-    previousState = permState;
-  });
-}
-
-/* ============================================================
-   INIT
-   ============================================================ */
-
-let permissions = Permissions; // alias for the permission announcer
-
-async function init() {
-  // HTTPS check
-  checkHTTPS();
-
-  // Viewport lock
-  installViewportLock();
-
-  // Load saved theme
-  Theme.loadSaved();
-
-  // Galaxy background — guard against null (not loaded on light theme)
-  if (Galaxy && typeof Galaxy.init === 'function') {
-    try { Galaxy.init(); } catch (_) {}
-  }
-
-  // Detect capabilities early
-  state.caps = Permissions.detectCapabilities();
-
-  // Handle URL hash — restore tab on back/forward/refresh
-  const initTab = location.hash.replace('#', '') || 'stars';
-
-  // Logo click — reset to STARS tab
-  const logoLink = document.querySelector('.logo-link');
-  if (logoLink) {
-    logoLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      switchTab('stars');
-    });
-  }
-
-  // Set up UI
-  setupTabBar();
-  setupUnitToggle();
-  setupThemeToggle();
-
-  // Handle hash changes (back/forward navigation)
-  window.addEventListener('hashchange', () => {
-    const tab = location.hash.replace('#', '');
-    if (tab && tab !== state.activeTab && ['stars','sound','vibration','magnetic','altimeter'].includes(tab)) {
-      switchTab(tab);
-    }
-  });
-
-  // Switch to default tab (if not already switched via hash)
-  if (!location.hash || location.hash === '#stars') {
-    switchTab('stars');
-  } else if (initTab !== 'stars') {
-    switchTab(initTab);
-  }
-
-  // Permission announcements
-  setupPermissionAnnouncements();
-
-  // Start location if already granted
-  Permissions.queryGeolocationPermission().then(state => {
-    if (state === 'granted') startLocationTracking();
-  });
-
-  // Periodic diagnostics refresh
-  setInterval(updateDiagnostics, 30000);
-
-  // Handle resize — re-render active instrument
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      if (activeInstrument && activeInstrument.onResize) {
-        try { activeInstrument.onResize(state, SensorBus, Utils, Permissions); } catch (_) {}
-      }
-    }, 100);
-  });
-}
-
-// Boot
-document.addEventListener('DOMContentLoaded', init);
-// Also boot immediately if DOM already loaded
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  init();
-}
+autoDemo();

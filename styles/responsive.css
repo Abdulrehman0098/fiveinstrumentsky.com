@@ -1,228 +1,134 @@
 /* ============================================================
    responsive.css — mobile, tablet, desktop breakpoints
+   Mobile-first. Safe areas, touch targets, dvh-aware sizing.
    ============================================================ */
 
-/* -----------------------------------------------------
-   Mobile-first: 320px – 479px
-   ----------------------------------------------------- */
-
-@media (max-width: 379px) {
-  .wordmark-title { font-size: 0.9rem; }
+/* ---------- Mobile 320-479px ---------- */
+@media (max-width: 479px) {
+  :root { --header-h: 48px; --tabbar-h: 48px; --btn-h: 40px; --max-w: 100%; }
+  .site-header { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .wordmark-title { font-size: 0.85rem; }
   .wordmark-sub { display: none; }
-  .header-right { gap: 6px; }
-  .tab-btn { min-width: 48px; padding: 0 6px; font-size: 0.6rem; }
-  .tab-btn svg { width: 13px; height: 13px; }
-
-  .readout-value { font-size: 1.2rem; }
+  .header-right { gap: 4px; }
+  .tab-btn { min-width: 48px; padding: 0 6px; }
+  .tab-btn svg { width: 18px; height: 18px; }
+  .tab-btn span { font-size: 0.55rem; }
+  .tab-indicator { width: 48px; }
+  .readout-value { font-size: 1.1rem; }
   .readout-card { padding: 6px 8px; }
-
   .instrument-title { font-size: 1rem; }
   .instrument-subtitle { font-size: 0.6rem; }
-
-  .chart-canvas { min-height: 80px; aspect-ratio: 4/3; }
-  .instrument-canvas { aspect-ratio: 1/1; min-height: 200px; }
-
-  .axis-value { font-size: 1rem; }
+  .chart-canvas { aspect-ratio: 4 / 3; min-height: 80px; }
+  .instrument-canvas { aspect-ratio: 1 / 1; min-height: 200px; }
+  .axis-value { font-size: 0.9rem; }
   .axis-label { font-size: 0.55rem; }
-
   .safety-bar-track { height: 8px; }
   .safety-labels { font-size: 0.5rem; }
-
   .diagnostics-grid { grid-template-columns: 1fr; gap: 8px; }
-  .diagnostics-toggle { font-size: 0.65rem; }
+  .diagnostics-toggle { font-size: 0.65rem; padding: 6px 12px; }
+  .diagnostics-toggle svg { width: 14px; height: 14px; }
+  .tab-bar { padding: 0 4px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+
+  /* Bottom-pinned tab bar on mobile */
+  .tab-bar { position: fixed; bottom: 0; left: 0; right: 0; top: auto; z-index: 100; }
+  body { padding-bottom: max(52px, env(safe-area-inset-bottom)); }
+  .main-content { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 }
 
-/* -----------------------------------------------------
-   Small mobile: 380px – 479px
-   ----------------------------------------------------- */
-
-@media (min-width: 380px) and (max-width: 479px) {
-  .tab-btn { min-width: 52px; font-size: 0.62rem; }
-  .tab-btn svg { width: 14px; height: 14px; }
-}
-
-/* -----------------------------------------------------
-   Mobile: 480px – 639px
-   ----------------------------------------------------- */
-
+/* ---------- Small mobile 480-639px ---------- */
 @media (min-width: 480px) and (max-width: 639px) {
-  .wordmark-title { font-size: 1rem; }
-
-  .tab-btn { min-width: 56px; font-size: 0.65rem; }
-  .tab-btn svg { width: 15px; height: 15px; }
-
-  .readout-value { font-size: 1.4rem; }
-  .readout-card { padding: 8px 10px; }
-
-  .instrument-canvas { aspect-ratio: 1/1; min-height: 260px; }
-  .chart-canvas { aspect-ratio: 16/9; min-height: 100px; }
-
+  :root { --header-h: 52px; --tabbar-h: 50px; --btn-h: 44px; }
+  .wordmark-title { font-size: 0.95rem; }
+  .tab-btn { min-width: 56px; }
+  .tab-btn svg { width: 20px; height: 20px; }
+  .tab-btn span { font-size: 0.6rem; }
+  .readout-value { font-size: 1.3rem; }
+  .instrument-canvas { min-height: 260px; }
+  .chart-canvas { min-height: 100px; }
   .diagnostics-grid { grid-template-columns: 1fr 1fr; }
-
   .stars-layout { grid-template-columns: 1fr 240px; }
+  body { padding-bottom: max(50px, env(safe-area-inset-bottom)); }
+  .tab-bar { position: sticky; top: var(--header-h); }
 }
 
-/* -----------------------------------------------------
-   Tablet: 640px – 1023px
-   ----------------------------------------------------- */
-
+/* ---------- Tablet 640-1023px ---------- */
 @media (min-width: 640px) and (max-width: 1023px) {
-  :root {
-    --header-pad: 14px 20px;
-  }
-
-  body { font-size: 16px; }
-
-  .tab-btn { flex: 1; min-width: 0; font-size: 0.7rem; padding: 0 10px; }
-  .tab-btn svg { width: 16px; height: 16px; }
-
-  .readout-value { font-size: 1.6rem; }
-  .readout-card { padding: 10px 12px; }
-
+  :root { --header-h: 56px; --tabbar-h: 52px; --btn-h: 48px; --header-pad: 14px 20px; }
+  .wordmark-title { font-size: 1rem; }
+  .tab-btn { min-width: 0; flex: 1; padding: 0 10px; }
+  .tab-btn svg { width: 22px; height: 22px; }
+  .readout-value { font-size: 1.5rem; }
+  .readout-card { padding: 8px 10px; }
   .instrument-title { font-size: 1.15rem; }
-
-  .instrument-canvas { aspect-ratio: 1/1; min-height: 300px; }
-  .chart-canvas { aspect-ratio: 16/9; min-height: 120px; }
-
+  .instrument-canvas { min-height: 300px; }
+  .chart-canvas { min-height: 120px; }
   .diagnostics-grid { grid-template-columns: 1fr 1fr; gap: 12px 16px; }
-
   .stars-layout { grid-template-columns: 1fr 300px; gap: 16px; }
   .stars-sky-container { min-height: 320px; }
+  .main-content { padding: 0 12px 12px; }
 }
 
-/* -----------------------------------------------------
-   Desktop: 1024px+
-   ----------------------------------------------------- */
-
-@media (min-width: 1024px) {
-  :root {
-    --header-pad: 16px 28px;
-  }
-
-  body { font-size: 17px; }
-
-  .main-content { padding: 0 16px 16px; }
-  .site-header { padding: 0 24px; }
-
-  .tab-bar { padding: 0 16px; }
-
-  .tab-btn { flex: 0 1 auto; min-width: 72px; font-size: 0.72rem; padding: 0 14px; }
-  .tab-btn svg { width: 18px; height: 18px; }
-
-  .readout-value { font-size: 1.8rem; }
-  .readout-card { padding: 12px 14px; }
-
-  .instrument-title { font-size: 1.3rem; }
-
-  .instrument-canvas { aspect-ratio: 1/1; min-height: 360px; }
-  .chart-canvas { aspect-ratio: 16/9; min-height: 140px; }
-
-  .diagnostics-grid { grid-template-columns: 1fr 1fr; gap: 16px 24px; max-width: 800px; }
-
+/* ---------- Desktop 1024-1439px ---------- */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  :root { --header-h: 56px; --tabbar-h: 52px; --btn-h: 48px; --header-pad: 16px 24px; --max-w: 1200px; }
+  .wordmark-title { font-size: 1.05rem; }
+  .tab-btn { min-width: 80px; padding: 0 14px; }
+  .tab-btn svg { width: 22px; height: 22px; }
+  .readout-value { font-size: 1.6rem; }
+  .readout-card { padding: 10px 12px; }
+  .instrument-title { font-size: 1.25rem; }
+  .instrument-canvas { min-height: 360px; }
+  .chart-canvas { min-height: 140px; }
+  .diagnostics-grid { grid-template-columns: 1fr 1fr; gap: 16px 24px; max-width: 760px; }
   .stars-layout { grid-template-columns: 1fr 320px; gap: 20px; }
   .stars-sky-container { min-height: 400px; }
-
-  .sound-layout { flex-direction: row; }
-  .sound-readouts { flex: 0 0 240px; }
-  .sound-charts { flex: 1; min-width: 320px; }
-  .sound-meter { flex: 1; min-width: 200px; }
-
-  .vibration-layout { flex-direction: row; }
-  .vibration-readouts { flex: 0 0 200px; }
-  .vibration-charts { flex: 1; min-width: 320px; }
-
-  .magnetic-layout { flex-direction: row; }
-  .magnetic-readouts { flex: 0 0 200px; }
-  .magnetic-charts { flex: 1; min-width: 320px; }
-
-  .altimeter-layout { flex-direction: row; }
-  .altimeter-readouts { flex: 0 0 240px; }
-  .altimeter-charts { flex: 1; min-width: 320px; }
+  .main-content { padding: 0 16px 16px; }
+  .tab-bar { padding: 0 16px; }
+  .site-header { padding: 0 24px; }
 }
 
-/* -----------------------------------------------------
-   Large desktop: 1440px+
-   ----------------------------------------------------- */
-
+/* ---------- Wide desktop 1440px+ ---------- */
 @media (min-width: 1440px) {
-  :root { --max-w: 1360px; }
-
-  .instrument-canvas { aspect-ratio: 1/1; min-height: 420px; }
-  .chart-canvas { aspect-ratio: 16/9; min-height: 160px; }
-
+  :root { --max-w: 1440px; }
+  .instrument-canvas { min-height: 420px; }
+  .chart-canvas { min-height: 160px; }
   .stars-layout { grid-template-columns: 1fr 360px; }
   .stars-sky-container { min-height: 460px; }
 }
 
-/* ----------------------------------------------------- 
-   Prevent horizontal scroll at all widths
-   ----------------------------------------------------- */
+/* ---------- Prevent horizontal scroll at all widths ---------- */
+html, body { overflow-x: hidden; max-width: 100vw; }
+.main-content, .tab-bar, .site-header { overflow-x: hidden; }
 
-html, body {
-  overflow-x: hidden;
-  max-width: 100vw;
+/* ---------- Touch-action: prevent scroll/zoom on interactive canvases ---------- */
+#stars-canvas, #mag-heat-canvas, #sound-wave-canvas, #sound-spectrum-canvas,
+#sound-history-canvas, #vib-wave-canvas, #vib-spectrum-canvas, #mag-wave-canvas,
+#alt-history-canvas, #alt-pressure-history-canvas {
+  touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 
-main, .main-content, .tab-bar, .site-header {
-  overflow-x: hidden;
+/* ---------- Buttons/sliders: remove double-tap-zoom delay ---------- */
+.primary-btn, .secondary-btn, .toggle-btn, .icon-btn, .switch-btn,
+.calibration-input, .search-input, .unit-toggle-btn, .time-scrubber,
+.sensitivity-slider, .reset-inline, .diagnostics-toggle {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* ----------------------------------------------------- 
-   Touch-action: prevent scroll/zoom on interactive canvases
-   ----------------------------------------------------- */
+/* ---------- Panel internal scrolling ---------- */
+.instrument-panel { overscroll-behavior: contain; }
 
-#stars-canvas,
-#mag-heat-canvas,
-#sound-wave-canvas,
-#sound-spectrum-canvas,
-#sound-history-canvas,
-#vib-wave-canvas,
-#vib-spectrum-canvas,
-#mag-wave-canvas,
-#alt-history-canvas,
-#alt-pressure-history-canvas {
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
+/* ---------- Focus-visible on mobile ---------- */
+@media (max-width: 639px) {
+  .skip-link { display: none; }
 }
 
-/* ----------------------------------------------------- 
-   Focus / active states — neon glow
-   ----------------------------------------------------- */
-
-:input,
-select,
-textarea,
-.toggle-btn,
-.primary-btn,
-.secondary-btn,
-.icon-btn,
-.switch-btn,
-.calibration-input,
-.search-input,
-.unit-toggle-btn,
-.time-scrubber,
-.sensitivity-slider {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
-}
-
-/* ----------------------------------------------------- 
-   Neon scrollbar
-   ----------------------------------------------------- */
-
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: rgba(10, 14, 26, 0.5); }
-::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.30); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--cyan); box-shadow: 0 0 8px rgba(0, 240, 255, 0.25); }
-
-/* ----------------------------------------------------- 
-   Focus-visible — cyan neon ring
-   ----------------------------------------------------- */
-
-:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.20);
+/* ---------- Landscape phones ---------- */
+@media (max-height: 480px) and (orientation: landscape) {
+  .stars-layout { grid-template-columns: 1fr; }
+  .stars-sky-container { min-height: 200px; max-height: 40vh; }
+  .instrument-canvas { min-height: 200px; }
+  .chart-canvas { min-height: 80px; }
+  .site-header { height: 44px; }
+  .tab-bar { height: 44px; }
 }
