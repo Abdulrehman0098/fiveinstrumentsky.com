@@ -1,7 +1,0 @@
-/*
-  Permissions-Policy: geolocation=(self), microphone=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self)
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer
-  Cache-Control: public, max-age=0, must-revalidate
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
