@@ -115,13 +115,24 @@
         <span class="chart-fps" id="stars-fps">— fps</span>
       </div>
       <div class="stars-controls">
-        <input type="search" id="star-search-input" class="search-input" placeholder="Search star, planet, constellation…" autocomplete="off" aria-label="Search celestial object">
+        <div class="search-wrap">
+          <input type="search" id="star-search-input" class="search-input" placeholder="Search star, planet, constellation…" autocomplete="off" aria-label="Search celestial object" role="combobox" aria-expanded="false" aria-controls="stars-search-result" aria-autocomplete="list">
+          <button type="button" class="search-clear" id="star-search-clear" aria-label="Clear search" hidden>&times;</button>
+        </div>
         <div class="search-result" id="stars-search-result" aria-live="polite"></div>
+        <div class="star-info-panel" id="stars-info-panel" role="dialog" aria-label="Star details" hidden>
+          <button class="star-info-close" id="stars-info-close" aria-label="Close star details">&times;</button>
+          <div class="star-info-body" id="stars-info-body"></div>
+        </div>
         <div class="time-scrubber-row">
           <label for="time-scrubber-range" class="scrubber-label">Time</label>
-          <input type="range" id="time-scrubber-range" class="time-scrubber" min="0" max="1440" value="0" step="1" aria-label="Scrub sky time within next 24 hours">
-          <span class="scrubber-value" id="time-scrubber-display">Now</span>
-          <button class="reset-inline" id="time-reset-btn" aria-label="Reset time">Reset</button>
+          <div class="scrubber-track">
+            <input type="range" id="time-scrubber-range" class="time-scrubber" min="0" max="1440" value="0" step="1" aria-label="Scrub sky time within next 24 hours">
+          </div>
+          <div class="scrubber-actions">
+            <span class="scrubber-value" id="time-scrubber-display">Now</span>
+            <button class="reset-inline" id="time-reset-btn" aria-label="Reset time">Reset</button>
+          </div>
         </div>
         <div class="celestial-body-list" id="stars-bodies"></div>
         <div class="toggle-row">
@@ -431,6 +442,7 @@
 <script src="scripts/data/planets.js" defer></script>
 <script src="scripts/data/messier.js" defer></script>
 <script src="scripts/data/zone-latlon.js" defer></script>
+<script src="scripts/data/stellar.js" defer></script>
 <script src="scripts/data/iss-tle.js" defer></script>
 <script src="scripts/utils.js" defer></script>
 <script src="scripts/bus.js" defer></script>
@@ -443,6 +455,7 @@
 <script src="scripts/lib/astronomy.js" defer></script>
 <script src="scripts/lib/tle-satellite.js" defer></script>
 <script src="scripts/instruments/stars.js" defer></script>
+<script src="scripts/stars-search.js" defer></script>
 <script src="scripts/instruments/sound.js" defer></script>
 <script src="scripts/instruments/vibration.js" defer></script>
 <script src="scripts/instruments/magnetic.js" defer></script>

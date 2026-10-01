@@ -173,9 +173,9 @@
     }
 
     var bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.6);
-    bg.addColorStop(0, '#120e2e');
-    bg.addColorStop(0.7, '#0a0d18');
-    bg.addColorStop(1, '#02040a');
+    bg.addColorStop(0, '#0b1030');    // deep space blue at the centre
+    bg.addColorStop(0.55, '#050813');
+    bg.addColorStop(1, '#010206');    // near-black at the edge
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -186,6 +186,17 @@
     var lst = ((gmstDeg(jd) + lon) % 360 + 360) % 360;
 
     var catalog = getCatalog();
+
+    // Publish the projection geometry so scripts/stars-search.js can
+    // hit-test clicks and paint its highlight without redoing the math.
+    if (window.FI && window.FI.stars) {
+      window.FI.stars.geom = {
+        cx: cx, cy: cy, radius: radius, lst: lst,
+        lat: lat, lon: lon, fov: state.fov,
+        rotationAz: state.rotationAz,
+        cssW: W, cssH: H
+      };
+    }
 
     // ---- Grid (gated) ----
     if (state.showGrid) {
@@ -216,8 +227,9 @@
     // ---- Constellation lines (gated) ----
     var segs = getSegments();
     if (state.showConstellations && segs.length) {
-      ctx.strokeStyle = 'rgba(0,240,255,0.42)';
-      ctx.lineWidth = 1;
+      // Thinner, lower-alpha lines: elegant rather than dominant.
+      ctx.strokeStyle = 'rgba(255,215,0,0.30)';
+      ctx.lineWidth = 0.6;
       ctx.beginPath();
       for (var si = 0; si < segs.length; si++) {
         var pa = project(segs[si][0], cx, cy, radius, lst);
@@ -241,12 +253,18 @@
 
       var size = Math.max(0.9, Math.min(5, 1.6 + (3 - s.mag) * 0.9));
 
+      // Real star colour from the B-V colour index where known, so the
+      // map shows the blue/orange/red spread instead of uniform white.
+      var stellar = (window.FI_STELLAR && window.FI_STELLAR.lookup)
+        ? window.FI_STELLAR.lookup(s) : null;
+      var starColour = (stellar && stellar.bv !== null) ? stellar.rgb : '#ffffff';
+
       if (s.mag < 1.5) {
-        ctx.shadowColor = '#ffffff';
+        ctx.shadowColor = starColour;
         ctx.shadowBlur = 6;
       }
       ctx.globalAlpha = 1;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = starColour;
       ctx.beginPath();
       ctx.arc(p.x, p.y, size, 0, 6.2832);
       ctx.fill();
@@ -375,6 +393,15 @@
       ctx.shadowBlur = 0;
     });
     ctx.restore();
+
+    // ---- Selection overlay (owned by scripts/stars-search.js) ----
+    if (typeof window.FI.stars.drawOverlay === 'function') {
+      try {
+        window.FI.stars.drawOverlay(canvas, ctx, {
+          cx: cx, cy: cy, radius: radius, lst: lst, cssW: W, cssH: H
+        });
+      } catch (e) {}
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -565,7 +592,12 @@
     init: activate,
     state: state,
     getState: function () { return state; },
-    redraw: drawSky
+    redraw: drawSky,
+    // Shared with scripts/stars-search.js for search + hit-testing.
+    getCatalog: getCatalog,
+    altAz: altAz,
+    project: project,
+    geom: null
   };
 
   if (document.readyState === 'loading') {
