@@ -8,6 +8,7 @@ node_modules/
 _shot-*.png
 _verify*.png
 _hdr-*.png
+_stars-*.png
 
 # Local scratch
 _old-reports/

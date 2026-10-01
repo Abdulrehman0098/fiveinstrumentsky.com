@@ -7,6 +7,8 @@
     "verify": "node tests/verify-http.js",
     "verify:faq": "node tests/verify-faq.js",
     "verify:header": "node tests/verify-header.js",
+    "verify:stars": "node tests/verify-stars-ui.js && node tests/verify-stars-detail.js",
+    "verify:all": "node tests/astro.test.js && node tests/css-vars.js && node tests/verify-http.js && node tests/verify-faq.js && node tests/verify-stars-ui.js",
     "shots": "node tests/verify-shots.js",
     "smoke": "node tests/smoke.js"
   },
