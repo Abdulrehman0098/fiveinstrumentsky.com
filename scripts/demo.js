@@ -1,8 +1,11 @@
+(function() {
+'use strict';
+
 /* ============================================================
    demo.js — realistic synthetic streams for Demo Mode.
    ============================================================ */
 
-export const Demo = {
+var Demo = {
   enabled: false,
   starHeadingPhase: 0,
   soundTime: 0,
@@ -11,15 +14,26 @@ export const Demo = {
   altimeterTime: 0,
   baseAltitude: 0,
 
-  setEnabled(v) {
+  setEnabled: function(v) {
     this.enabled = !!v;
   },
 
-  isEnabled() {
+  isEnabled: function() {
     return this.enabled;
   },
 
-  generateSoundSample() {
+  loadFromStorage: function() {
+    try {
+      const stored = safeStorage.get('fi-demo-enabled', null);
+      if (stored === true || stored === 'true') this.enabled = true;
+    } catch (_) {}
+  },
+
+  saveToStorage: function() {
+    try { safeStorage.set('fi-demo-enabled', this.enabled); } catch (_) {}
+  },
+
+  generateSoundSample: function() {
     if (!this.enabled) return null;
     const t = this.soundTime;
     this.soundTime += 1 / 60;
@@ -27,13 +41,14 @@ export const Demo = {
     const burst = Math.sin(t * 0.15) * 0.18 * (0.5 + 0.5 * Math.sin(t * 0.4));
     const toneFreq = 400 + 200 * Math.sin(t * 0.12) + 80 * Math.sin(t * 0.4);
     const tone = Math.sin(t * toneFreq * Math.PI * 2 * 0.015) * 0.09 * (0.5 + 0.5 * Math.sin(t * 0.05));
+    const burst2 = Math.sin(t * 0.25) * 0.06 * (0.5 + 0.5 * Math.sin(t * 0.3));
     const sample = noise + burst + burst2 + tone;
     const rms = Math.sqrt(sample * sample);
     const peak = Math.max(0, sample);
     return { sample, rms, peak, toneFreq, now: performance.now() };
   },
 
-  generateVibrationSample() {
+  generateVibrationSample: function() {
     if (!this.enabled) return null;
     const t = this.vibrationTime;
     this.vibrationTime += 1 / 60;
@@ -48,7 +63,7 @@ export const Demo = {
     return { x, y, z, magnitude, gTotal, rms, peakFreq, now: performance.now(), impulse };
   },
 
-  generateMagneticSample(heatPointer) {
+  generateMagneticSample: function(heatPointer) {
     if (!this.enabled) return null;
     const t = this.magneticTime;
     this.magneticTime += 1 / 60;
@@ -69,26 +84,45 @@ export const Demo = {
     return { x, y, z, total, now: performance.now(), heatPointer, anomalyStrength };
   },
 
-  generateAltimeterSample() {
+  generateAltimeterSample: function() {
     if (!this.enabled) return null;
     const t = this.altimeterTime;
     this.altimeterTime += 1 / 60;
     const walkedAlt = this.baseAltitude + 50 * Math.sin(t * 0.08) + 25 * Math.sin(t * 0.23);
     const P0 = 1013.25;
-    const hNorm = clamp(walkedAlt / 44330.77, 0, 0.95);
+    const hNorm = this.clamp(walkedAlt / 44330.77, 0, 0.95);
     const pressure = P0 * Math.pow(1 - hNorm, 1 / 0.190263);
     const dt = 1 / 60;
     const vspeed = (walkedAlt - this.baseAltitude) / dt;
     this.baseAltitude += 0.15;
-    return { altitude: walkedAlt, pressure, vspeed, now: performance.now() };
+    return { altitude: walkedAlt, pressure: pressure, vspeed: vspeed, now: performance.now() };
   },
 
-  generateStarHeading(dt) {
+  generateAlt: function(now) {
+    // Called by altimeter.js — returns { altitude, pressure, slp }
+    if (!this.enabled) return null;
+    const sample = this.generateAltimeterSample();
+    if (!sample) return null;
+    return {
+      altitude: sample.altitude,
+      pressure: sample.pressure,
+      slp: 1013.25
+    };
+  },
+
+  generateStarHeading: function(dt) {
     if (!this.enabled) return null;
     this.starHeadingPhase += dt * 0.2;
     const azimuth = 180 + 40 * Math.sin(this.starHeadingPhase) + 10 * Math.sin(this.starHeadingPhase * 0.4);
     const pitch = 20 * Math.sin(this.starHeadingPhase * 0.6) + 10;
     const roll = 10 * Math.sin(this.starHeadingPhase * 0.3);
-    return { azimuth: wrapDeg(azimuth), pitch: clamp(pitch, -90, 90), roll: wrapDeg(roll), timestamp: performance.now() };
-  }
+    return { azimuth: this.wrapDeg(azimuth), pitch: this.clamp(pitch, -90, 90), roll: this.wrapDeg(roll), timestamp: performance.now() };
+  },
+
+  clamp: function(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); },
+  wrapDeg: function(v) { var r = v % 360; return r < 0 ? r + 360 : r; }
 };
+
+window.FI = window.FI || {};
+window.FI.demo = Demo;
+})();

@@ -1,3 +1,6 @@
+(function() {
+'use strict';
+
 /* ============================================================
    units.js — metric/imperial switch, persisted, emits unitschange
    ============================================================ */
@@ -5,7 +8,7 @@
 const UNIT_KEY = "fi-unit";
 const SYSTEMS = ["metric", "imperial"];
 
-export const Units = {
+const Units = {
   system: "metric",
 
   init() {
@@ -34,12 +37,19 @@ export const Units = {
     try {
       safeStorage.set(UNIT_KEY, this.system);
     } catch (_) {}
-    SensorBus.emit("unitschange", this.system);
+    window.FI.bus.emit("unitschange", this.system);
   },
 
   isMetric() { return this.system === "metric"; },
   getSystem() { return this.system; }
 };
 
-export function getUnits() { return Units.system; }
-export function toggleUnits() { Units.toggle(); }
+function getUnits() { return Units.system; }
+function toggleUnits() { Units.toggle(); }
+
+Units.loadFromStorage = function() { Units.init(); };
+Units.saveToStorage = function() { try { safeStorage.set(UNIT_KEY, Units.system); } catch(_) {} };
+
+window.FI = window.FI || {};
+window.FI.units = Units;
+})();

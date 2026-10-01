@@ -1,15 +1,16 @@
 /* ============================================================
    diagnostics.js — device info, sensor status, error log, GPS
+   Classic IIFE, no imports, no exports.
    ============================================================ */
 
-import { Permissions } from './permissions.js';
-import { safeStorage } from './utils.js';
+(function () {
+'use strict';
 
-export const Diagnostics = {
+var Diagnostics = {
   capabilitiesEl: null, permissionsEl: null, locationEl: null, copyBtn: null,
   instrumentsEl: null, errorLogEl: null, buildInfoEl: null,
 
-  init() {
+  init: function () {
     this.capabilitiesEl = document.getElementById('diagnostics-capabilities');
     this.permissionsEl = document.getElementById('diagnostics-permissions');
     this.locationEl = document.getElementById('diagnostics-location');
@@ -22,12 +23,13 @@ export const Diagnostics = {
     this.updateLocation();
     this.updateInstruments();
     this.updateBuildInfo();
-    setInterval(() => { this.updatePermissions(); this.updateLocation(); }, 10000);
+    var self = this;
+    setInterval(function () { self.updatePermissions(); self.updateLocation(); }, 10000);
   },
 
-  updateCapabilities() {
+  updateCapabilities: function () {
     if (!this.capabilitiesEl) return;
-    const items = [
+    var items = [
       { name: 'Secure context', ok: location.protocol === 'https:' || (location.protocol === 'http:' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) },
       { name: 'Geolocation', ok: 'geolocation' in navigator },
       { name: 'Microphone', ok: 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices },
@@ -42,22 +44,50 @@ export const Diagnostics = {
       { name: 'Audio', ok: 'AudioContext' in window || 'webkitAudioContext' in window },
       { name: 'Haptic', ok: 'vibrate' in navigator }
     ];
-    this.capabilitiesEl.innerHTML = items.map(i => `<li><span class="dot ${i.ok ? 'green' : 'red'}"></span>${i.name} ${i.ok ? '✓' : '✗'}</li>`).join('');
-  },
-
-  async updatePermissions() {
-    if (!this.permissionsEl) return;
-    const results = [];
-    for (const [name, fn] of [['Geolocation', Permissions.geolocation], ['Microphone', Permissions.microphone], ['DeviceMotion', Permissions.deviceMotion], ['DeviceOrientation', Permissions.deviceOrientation], ['Magnetometer', Permissions.magnetometer], ['Accelerometer', Permissions.accelerometer], ['Barometer', Permissions.barometer]]) {
-      try { results.push({ name, state: await fn() }); } catch (_) { results.push({ name, state: 'unknown' }); }
+    var html = '';
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      html += '<li><span class="dot ' + (item.ok ? 'green' : 'red') + '"></span>' + item.name + ' ' + (item.ok ? '\u2713' : '\u2717') + '</li>';
     }
-    const stateColors = { granted: 'green', denied: 'red', prompt: 'yellow', unsupported: 'gray', insecure: 'red', unknown: 'gray' };
-    this.permissionsEl.innerHTML = results.map(r => `<li><span class="dot ${stateColors[r.state] || 'gray'}"></span>${r.name}: ${r.state}</li>`).join('');
+    this.capabilitiesEl.innerHTML = html;
   },
 
-  updateLocation() {
+  updatePermissions: function () {
+    if (!this.permissionsEl) return;
+    var self = this;
+    var results = [];
+    var tasks = [
+      ['Geolocation', window.FI.permissions ? window.FI.permissions.geolocation : null],
+      ['Microphone', window.FI.permissions ? window.FI.permissions.microphone : null],
+      ['DeviceMotion', window.FI.permissions ? window.FI.permissions.deviceMotion : null],
+      ['DeviceOrientation', window.FI.permissions ? window.FI.permissions.deviceOrientation : null],
+      ['Magnetometer', window.FI.permissions ? window.FI.permissions.magnetometer : null],
+      ['Accelerometer', window.FI.permissions ? window.FI.permissions.accelerometer : null],
+      ['Barometer', window.FI.permissions ? window.FI.permissions.barometer : null]
+    ];
+    var completed = 0;
+    for (var i = 0; i < tasks.length; i++) {
+      (function (name, fn) {
+        if (!fn) { results.push({ name: name, state: 'unsupported' }); completed++; return; }
+        fn().then(function (state) { results.push({ name: name, state: state }); completed++; }).catch(function () { results.push({ name: name, state: 'unknown' }); completed++; });
+      })(tasks[i][0], tasks[i][1]);
+    }
+    var checkDone = function () {
+      if (completed < tasks.length) return;
+      var stateColors = { granted: 'green', denied: 'red', prompt: 'yellow', unsupported: 'gray', insecure: 'red', unknown: 'gray' };
+      var html = '';
+      for (var i = 0; i < results.length; i++) {
+        var r = results[i];
+        html += '<li><span class="dot ' + (stateColors[r.state] || 'gray') + '"></span>' + r.name + ': ' + r.state + '</li>';
+      }
+      self.permissionsEl.innerHTML = html;
+    };
+    checkDone();
+  },
+
+  updateLocation: function () {
     if (!this.locationEl) return;
-    const cached = safeStorage.get('fi-last-gps', null);
+    var cached = window.safeStorage ? window.safeStorage.get('fi-last-gps', null) : null;
     if (cached && cached.lat != null) {
       this.locationEl.textContent = cached.lat.toFixed(5) + ', ' + cached.lon.toFixed(5);
       this.locationEl.dataset.lat = cached.lat;
@@ -67,24 +97,38 @@ export const Diagnostics = {
     }
   },
 
-  updateInstruments() {
+  updateInstruments: function () {
     if (!this.instrumentsEl) return;
-    const panels = ['stars', 'sound', 'vibration', 'magnetic', 'altimeter'];
-    this.instrumentsEl.innerHTML = panels.map(name => {
-      const panel = document.getElementById('panel-' + name);
-      if (!panel) return name + ': missing';
-      const chip = panel.querySelector('.mode-chip');
-      const badge = panel.querySelector('.sim-badge');
-      const mode = chip ? chip.dataset.mode : 'missing';
-      const sim = badge && !badge.classList.contains('hidden') ? ' (DEMO)' : '';
-      return name + ': ' + mode + sim;
-    }).join('<br>');
+    var panels = ['stars', 'sound', 'vibration', 'magnetic', 'altimeter'];
+    var html = '';
+    for (var i = 0; i < panels.length; i++) {
+      var name = panels[i];
+      var panel = document.getElementById('panel-' + name);
+      if (!panel) { html += name + ': missing<br>'; continue; }
+      var chip = panel.querySelector('.mode-chip');
+      var badge = panel.querySelector('.sim-badge');
+      var mode = chip ? chip.dataset.mode : 'missing';
+      var sim = badge && !badge.classList.contains('hidden') ? ' (DEMO)' : '';
+      html += name + ': ' + mode + sim + '<br>';
+    }
+    this.instrumentsEl.innerHTML = html;
   },
 
-  updateBuildInfo() {
+  updateBuildInfo: function () {
     if (!this.buildInfoEl) return;
-    this.buildInfoEl.innerHTML = 'Field Instruments v1.0.0 NEON GALAXY<br><span style="font-size:0.65rem;color:var(--ink-faint)">' + new Date().toISOString().slice(0, 10) + ' · ' + location.protocol + '</span>';
+    this.buildInfoEl.innerHTML = 'Field Instruments v1.0.0 NEON GALAXY<br><span style="font-size:0.65rem;color:var(--ink-faint)">' + new Date().toISOString().slice(0, 10) + ' \u00b7 ' + location.protocol + '</span>';
   },
 
-  updateInstrumentState(name) { this.updateInstruments(); }
+  updateInstrumentState: function (name) { this.updateInstruments(); }
 };
+
+window.FI = window.FI || {};
+window.FI.diagnostics = Diagnostics;
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function () { Diagnostics.init(); });
+} else {
+  Diagnostics.init();
+}
+
+})();

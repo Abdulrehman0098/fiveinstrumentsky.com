@@ -1,376 +1,492 @@
-/* ============================================================
-   instruments/magnetic.js — MAGNETIC FIELD MAPPER
-   ============================================================ */
+(function () {
+  'use strict';
+  window.FI = window.FI || {};
 
-import { Demo } from '../demo.js';
-import { clamp } from '../utils.js';
+  var EARTH_FIELD = 48;   // uT, nominal total field
 
-let state = null;
-let isActive = false;
-let magSensor = null;
-let heatPointer = null;
-
-export function init() {
-  state = {
-    xEl: null, yEl: null, zEl: null, totalEl: null,
-    vsEarthEl: null, deviationDirEl: null,
-    anomalyFillEl: null, anomalyValEl: null,
-    thresholdEl: null, thresholdDisplayEl: null,
-    fpsEl: null, waveCanvas: null, heatCanvas: null,
-    calibrateBtn: null, resetTrailBtn: null, toneBtn: null, hapticBtn: null,
-    statusEl: null, hintEl: null,
-    currentX: 0, currentY: 0, currentZ: 0, currentTotal: 0, currentAnomaly: 0,
-    baselineX: 15, baselineY: 10, baselineZ: 45,
-    baselineSamples: [],
-    anomalyThreshold: 5,
-    trailData: [],
-    paintMode: false,
-    toneActive: false, toneOsc: null, toneCtx: null,
-    xBuf: new Float64Array(300), yBuf: new Float64Array(300), zBuf: new Float64Array(300),
-    bufPos: 0
+  var state = {
+    active: false,
+    measuring: false,
+    demo: false,
+    live: false,
+    x: 0, y: 0, z: 0,
+    total: 0,
+    baseline: null,
+    anomaly: 0,
+    threshold: 150,
+    heatPoints: [],
+    maxHeatPoints: 500,
+    rafId: null,
+    toneOn: false,
+    hapticOn: false,
+    audioCtx: null,
+    osc: null,
+    demoT: 0,
+    lastSampleAt: 0
   };
-}
 
-export function activate() {
-  if (!state || isActive) return;
-  isActive = true;
-  state.xEl = document.getElementById('mag-x');
-  state.yEl = document.getElementById('mag-y');
-  state.zEl = document.getElementById('mag-z');
-  state.totalEl = document.getElementById('mag-total');
-  state.vsEarthEl = document.getElementById('mag-vs-earth');
-  state.deviationDirEl = document.getElementById('mag-deviation-dir');
-  state.anomalyFillEl = document.getElementById('mag-anomaly-fill');
-  state.anomalyValEl = document.getElementById('mag-anomaly-val');
-  state.thresholdEl = document.getElementById('mag-threshold');
-  state.thresholdDisplayEl = document.getElementById('mag-threshold-display');
-  state.fpsEl = document.getElementById('mag-fps');
-  state.waveCanvas = document.getElementById('mag-wave-canvas');
-  state.heatCanvas = document.getElementById('mag-heat-canvas');
-  state.calibrateBtn = document.getElementById('mag-calibrate-btn');
-  state.resetTrailBtn = document.getElementById('mag-reset-trail-btn');
-  state.toneBtn = document.getElementById('mag-tone-btn');
-  state.hapticBtn = document.getElementById('mag-haptic-btn');
-  state.statusEl = document.getElementById('mag-status');
-  state.hintEl = document.querySelector('#panel-magnetic .heat-hint');
+  var els = {};
+  var heatCanvas = null, heatCtx = null;
+  var waveHistory = [];
+  var lastFrame = 0;
 
-  const threshold = document.getElementById('mag-threshold');
-  if (threshold) state.anomalyThreshold = parseFloat(threshold.value) || 5;
+  /* ------------------------------------------------------------------ */
 
-  const chip = document.querySelector('#panel-magnetic .mode-chip');
-  const badge = document.querySelector('#panel-magnetic .sim-badge');
-  state.statusEl.textContent = 'Initializing…';
-
-  if (location.protocol === 'file:') {
-    state.statusEl.textContent = 'file:// — open via START.bat to use sensors';
-    if (chip) chip.dataset.mode = 'unsupported';
-    return;
+  function updateStatus(text, chip) {
+    var s = document.getElementById('mag-status');
+    if (s) s.textContent = text || '';
+    var c = document.getElementById('panel-magnetic');
+    if (c && chip) {
+      var chipEl = c.querySelector('.mode-chip');
+      if (chipEl) { chipEl.textContent = chip; chipEl.setAttribute('data-mode', chip.toLowerCase()); }
+    }
   }
 
-  const hasMag = 'Magnetometer' in window || 'UncalibratedMagnetometer' in window;
-  if (hasMag) {
-    try {
-      magSensor = new Magnetometer({ frequency: 60 });
-      magSensor.addEventListener('reading', onMagReading);
-      magSensor.addEventListener('error', onMagError);
-      magSensor.start();
-      if (chip) chip.dataset.mode = 'live';
-      state.statusEl.textContent = 'Magnetometer active';
-    } catch (e) {
-      if (e.name === 'SecurityError' || e.name === 'NotAllowedError') {
-        state.statusEl.textContent = 'Permission denied — use Demo';
-        if (chip) chip.dataset.mode = 'denied';
-        badge?.classList.remove('hidden');
-        Demo.setEnabled(true);
-        isActive = false;
-        return;
-      }
+  function setBadge(visible) {
+    var badge = document.querySelector('#panel-magnetic .sim-badge');
+    if (badge) badge.classList.toggle('hidden', !visible);
+  }
+
+  function removeAlertBanner() {
+    // Hardware absence is not an error state - it is demo mode.
+    var banner = document.querySelector('#panel-magnetic .alert-banner, #panel-magnetic .warn-banner, #panel-magnetic .mag-banner');
+    if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
+  }
+
+  function drawEmpty(canvas, message) {
+    if (!canvas) return;
+    var r = canvas.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    var c = canvas.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.fillStyle = 'rgba(2,4,10,0.7)'; c.fillRect(0, 0, r.width, r.height);
+    c.strokeStyle = 'rgba(0,240,255,0.08)'; c.lineWidth = 1;
+    for (var x = 0; x < r.width; x += 40) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, r.height); c.stroke(); }
+    for (var y = 0; y < r.height; y += 30) { c.beginPath(); c.moveTo(0, y); c.lineTo(r.width, y); c.stroke(); }
+    c.fillStyle = 'rgba(232,237,255,0.4)'; c.font = '12px ui-sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(message, r.width / 2, r.height / 2);
+  }
+
+  function init() {
+    els.toggleBtn = document.getElementById('mag-toggle-btn');
+    els.xEl = document.getElementById('mag-x');
+    els.yEl = document.getElementById('mag-y');
+    els.zEl = document.getElementById('mag-z');
+    els.totalEl = document.getElementById('mag-total');
+    els.vsEarth = document.getElementById('mag-vs-earth');
+    els.deviationDir = document.getElementById('mag-deviation-dir');
+    els.anomalyVal = document.getElementById('mag-anomaly-val');
+    els.anomalyFill = document.getElementById('mag-anomaly-fill');
+    els.thresholdSlider = document.getElementById('mag-threshold');
+    els.thresholdDisplay = document.getElementById('mag-threshold-display');
+    els.waveCanvas = document.getElementById('mag-wave-canvas');
+    els.heatCanvas = document.getElementById('mag-heat-canvas');
+    els.fpsEl = document.getElementById('mag-fps');
+    els.calibrateBtn = document.getElementById('mag-calibrate-btn');
+    els.resetTrailBtn = document.getElementById('mag-reset-trail-btn');
+    els.toneBtn = document.getElementById('mag-tone-btn');
+    els.hapticBtn = document.getElementById('mag-haptic-btn');
+    els.status = document.getElementById('mag-status');
+
+    heatCanvas = els.heatCanvas;
+    heatCtx = heatCanvas ? heatCanvas.getContext('2d') : null;
+
+    if (els.toggleBtn && !els.toggleBtn._bound) {
+      els.toggleBtn._bound = true;
+      els.toggleBtn.addEventListener('click', toggleMeasurement);
+    }
+    if (els.calibrateBtn) els.calibrateBtn.addEventListener('click', calibrate);
+    if (els.resetTrailBtn) els.resetTrailBtn.addEventListener('click', resetTrail);
+    if (els.toneBtn) els.toneBtn.addEventListener('click', toggleTone);
+    if (els.hapticBtn) els.hapticBtn.addEventListener('click', toggleHaptic);
+    if (els.thresholdSlider) els.thresholdSlider.addEventListener('input', function () {
+      state.threshold = parseFloat(els.thresholdSlider.value);
+      if (els.thresholdDisplay) els.thresholdDisplay.textContent = state.threshold.toFixed(0) + ' \u00b5T';
+    });
+
+    if (heatCanvas) {
+      heatCanvas.addEventListener('pointermove', function (e) {
+        if (state.measuring) {
+          var rect = heatCanvas.getBoundingClientRect();
+          var px = (e.clientX - rect.left) / rect.width;
+          var py = (e.clientY - rect.top) / rect.height;
+          paintHeatPixel(px, py, state.total);
+        }
+      });
+    }
+
+    drawEmpty(els.waveCanvas, 'No data yet \u2014 press Start');
+    drawEmpty(els.heatCanvas, 'No data yet \u2014 press Start');
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Start / stop                                                        */
+  /* ------------------------------------------------------------------ */
+
+  function toggleMeasurement() {
+    if (state.measuring) stopMeasurement(); else startMeasurement();
+  }
+
+  function startMeasurement() {
+    if (state.measuring) return;
+    if (els.toggleBtn) els.toggleBtn.textContent = 'Stop Measurement';
+    state.measuring = true;
+    state.live = false;
+    state.demo = false;
+    waveHistory = [];
+
+    removeAlertBanner();
+    updateStatus('Starting magnetometer\u2026', 'idle');
+
+    var ok = false;
+
+    if (typeof window.Magnetometer === 'function') {
       try {
-        magSensor = new UncalibratedMagnetometer({ frequency: 60 });
-        magSensor.addEventListener('reading', onMagReading);
-        magSensor.start();
-        if (chip) chip.dataset.mode = 'live';
-        state.statusEl.textContent = 'Uncalibrated magnetometer active';
-      } catch (_) {
-        state.statusEl.textContent = 'No magnetometer on this device — Demo mode';
-        if (chip) chip.dataset.mode = 'unsupported';
-        badge?.classList.remove('hidden');
-        Demo.setEnabled(true);
-        isActive = false;
+        var sensor = new window.Magnetometer({ frequency: 60 });
+        state.sensor = sensor;
+        sensor.addEventListener('reading', function () {
+          addSample(sensor.x, sensor.y, sensor.z);
+          if (!state.live) {
+            state.live = true; state.demo = false;
+            setBadge(false);
+            updateStatus('Magnetometer active', 'LIVE');
+          }
+        });
+        sensor.addEventListener('error', function () { fallbackToDemo(); });
+        sensor.start();
+        ok = true;
+        updateStatus('Magnetometer active', 'LIVE');
+      } catch (e) {
+        console.warn('[mag] Magnetometer failed', e);
+        ok = false;
       }
     }
-  } else {
-    state.statusEl.textContent = 'No magnetometer on this device — Demo mode';
-    if (chip) chip.dataset.mode = 'unsupported';
-    badge?.classList.remove('hidden');
-    Demo.setEnabled(true);
-    isActive = false;
-  }
 
-  state.calibrateBtn?.addEventListener('click', calibrate);
-  state.resetTrailBtn?.addEventListener('click', resetTrail);
-  state.toneBtn?.addEventListener('click', toggleTone);
-  state.hapticBtn?.addEventListener('click', toggleHaptic);
-
-  const thresholdInput = document.getElementById('mag-threshold');
-  if (thresholdInput) thresholdInput.addEventListener('input', () => { state.anomalyThreshold = parseFloat(thresholdInput.value) || 5; if (state.thresholdDisplayEl) state.thresholdDisplayEl.textContent = (state.anomalyThreshold).toFixed(1) + ' µT'; });
-
-  if (state.hintEl) state.hintEl.textContent = 'Drag across the heat canvas to paint a field map';
-  setupHeatCanvas();
-  Loop.register('magnetic', drawLoop, 30);
-}
-
-export function deactivate() {
-  if (!isActive) return;
-  isActive = false;
-  if (magSensor) { try { if (typeof magSensor.stop === 'function') magSensor.stop(); } catch (_) {} magSensor = null; }
-  if (state.toneActive) stopTone();
-  Loop.unregister('magnetic');
-  const chip = document.querySelector('#panel-magnetic .mode-chip');
-  if (chip) chip.dataset.mode = 'idle';
-  const badge = document.querySelector('#panel-magnetic .sim-badge');
-  if (badge) badge.classList.add('hidden');
-  updateReadouts();
-  drawWaveFrame();
-  drawHeatFrame();
-}
-
-function onMagReading(e) {
-  if (!isActive) return;
-  const x = e.reading.x !== null ? e.reading.x : 0;
-  const y = e.reading.y !== null ? e.reading.y : 0;
-  const z = e.reading.z !== null ? e.reading.z : 0;
-  state.currentX = x; state.currentY = y; state.currentZ = z;
-  state.currentTotal = Math.sqrt(x ** 2 + y ** 2 + z ** 2);
-  state.baselineSamples.push(x, y, z);
-  if (state.baselineSamples.length > 500) state.baselineSamples.splice(0, state.baselineSamples.length - 500);
-  if (state.baselineSamples.length >= 100 && state.baselineSamples.length % 100 === 0) updateBaselines();
-  const diffX = x - state.baselineX, diffY = y - state.baselineY, diffZ = z - state.baselineZ;
-  state.currentAnomaly = Math.sqrt(diffX ** 2 + diffY ** 2 + diffZ ** 2);
-  state.xBuf[state.bufPos % 300] = x;
-  state.yBuf[state.bufPos % 300] = y;
-  state.zBuf[state.bufPos % 300] = z;
-  state.bufPos++;
-  updateReadouts();
-  drawWaveFrame();
-  drawHeatFrame();
-  updateAnomalyMeter(state.currentAnomaly);
-}
-
-function updateBaselines() {
-  const samples = state.baselineSamples;
-  if (samples.length < 50) return;
-  const xs = samples.filter((_, i) => i % 3 === 0);
-  const ys = samples.filter((_, i) => i % 3 === 1);
-  const zs = samples.filter((_, i) => i % 3 === 2);
-  state.baselineX = median(xs);
-  state.baselineY = median(ys);
-  state.baselineZ = median(zs);
-}
-
-function median(arr) {
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
-
-function onMagError(e) {
-  if (!isActive) return;
-  console.warn('Magnetometer error:', e);
-  if (state.statusEl && isActive) state.statusEl.textContent = 'Sensor error — ' + e.message;
-}
-
-function updateReadouts() {
-  if (state.xEl) state.xEl.textContent = isFinite(state.currentX) ? state.currentX.toFixed(2) + ' µT' : '—';
-  if (state.yEl) state.yEl.textContent = isFinite(state.currentY) ? state.currentY.toFixed(2) + ' µT' : '—';
-  if (state.zEl) state.zEl.textContent = isFinite(state.currentZ) ? state.currentZ.toFixed(2) + ' µT' : '—';
-  if (state.totalEl) state.totalEl.textContent = isFinite(state.currentTotal) ? state.currentTotal.toFixed(2) + ' µT' : '—';
-  const bTotal = Math.sqrt(state.baselineX ** 2 + state.baselineY ** 2 + state.baselineZ ** 2);
-  const diffTotal = Math.abs(state.currentTotal - bTotal);
-  if (state.vsEarthEl) state.vsEarthEl.textContent = bTotal > 0 ? (diffTotal).toFixed(2) + ' µT (' + (diffTotal / bTotal * 100).toFixed(1) + '%)' : '—';
-  const dx = state.currentX - state.baselineX;
-  const dy = state.currentY - state.baselineY;
-  let dirDeg = 0;
-  if (dx !== 0 || dy !== 0) dirDeg = Math.atan2(dy, dx) * 180 / Math.PI;
-  if (state.deviationDirEl) state.deviationDirEl.textContent = dirDeg.toFixed(0) + '° ' + dirToCompass(dirDeg);
-}
-
-function dirToCompass(deg) {
-  const dirs = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
-  const i = Math.round(((deg + 360) % 360) / 45) % 8;
-  return dirs[i];
-}
-
-function updateAnomalyMeter(anomaly) {
-  const fill = state.anomalyFillEl;
-  const valEl = state.anomalyValEl;
-  if (!fill || !valEl) return;
-  const pct = clamp(anomaly / (state.anomalyThreshold || 5) * 100, 0, 100);
-  fill.style.width = pct + '%';
-  if (pct > 80) { fill.style.background = '#ef4444'; fill.style.boxShadow = '0 0 8px rgba(239,68,68,0.3)'; }
-  else if (pct > 50) { fill.style.background = '#eab308'; fill.style.boxShadow = '0 0 8px rgba(234,179,8,0.3)'; }
-  else { fill.style.background = '#00f0ff'; fill.style.boxShadow = '0 0 8px rgba(0,240,255,0.2)'; }
-  valEl.textContent = anomaly.toFixed(2) + ' µT';
-}
-
-function calibrate() {
-  state.baselineX = state.currentX;
-  state.baselineY = state.currentY;
-  state.baselineZ = state.currentZ;
-  state.baselineSamples = [];
-  state.statusEl.textContent = 'Calibrated: ' + state.baselineX.toFixed(1) + ', ' + state.baselineY.toFixed(1) + ', ' + state.baselineZ.toFixed(1) + ' µT (Earth field)';
-  state.statusEl.classList.add('ok');
-  setTimeout(() => state.statusEl.classList.remove('ok'), 3000);
-  const chip = document.querySelector('#panel-magnetic .mode-chip');
-  if (chip) chip.dataset.mode = 'live';
-  updateReadouts();
-  updateAnomalyMeter(0);
-}
-
-function resetTrail() {
-  state.trailData = [];
-  drawHeatFrame();
-  if (state.statusEl) { state.statusEl.textContent = 'Heat map trail cleared'; setTimeout(() => { state.statusEl.textContent = 'Magnetometer active'; }, 2000); }
-}
-
-function toggleTone() {
-  if (state.toneActive) { stopTone(); state.toneBtn.setAttribute('aria-pressed', 'false'); const label = state.toneBtn.querySelector('.label'); if (label) label.textContent = 'Tone OFF'; }
-  else { startTone(); state.toneBtn.setAttribute('aria-pressed', 'true'); const label = state.toneBtn.querySelector('.label'); if (label) label.textContent = 'Tone ON'; }
-}
-
-function startTone() {
-  try {
-    state.toneCtx = new AudioContext();
-    state.toneOsc = state.toneCtx.createOscillator();
-    state.toneOsc.type = 'sawtooth';
-    state.toneOsc.frequency.value = 80;
-    const gain = state.toneCtx.createGain();
-    gain.gain.value = 0.05;
-    state.toneOsc.connect(gain);
-    gain.connect(state.toneCtx.destination);
-    state.toneOsc.start();
-    state.toneActive = true;
-  } catch (_) {}
-}
-
-function stopTone() {
-  if (state.toneOsc) { try { state.toneOsc.stop(); } catch (_) {} state.toneOsc = null; }
-  if (state.toneCtx && state.toneCtx.state !== 'closed') { try { state.toneCtx.close(); } catch (_) {} state.toneCtx = null; }
-  state.toneActive = false;
-}
-
-function toggleHaptic() {
-  if (navigator.vibrate) {
-    navigator.vibrate(200);
-    state.hapticBtn.setAttribute('aria-pressed', state.hapticBtn.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
-    const label = state.hapticBtn.querySelector('.label');
-    if (label) label.textContent = navigator.vibrate ? 'Vibrate ON' : 'Vibrate OFF';
-  } else {
-    if (state.statusEl) { state.statusEl.textContent = 'Vibration API not available on this device'; state.statusEl.classList.add('info'); setTimeout(() => state.statusEl.classList.remove('info'), 3000); }
-  }
-}
-
-function setupHeatCanvas() {
-  const heatCanvas = state.heatCanvas;
-  if (!heatCanvas) return;
-  heatCanvas.addEventListener('pointerdown', (e) => { heatCanvas.setPointerCapture(e.pointerId); heatPointer = { x: e.offsetX / heatCanvas.width, y: e.offsetY / heatCanvas.height }; state.paintMode = true; });
-  heatCanvas.addEventListener('pointermove', (e) => {
-    if (!state.paintMode) return;
-    heatPointer = { x: e.offsetX / heatCanvas.width, y: e.offsetY / heatCanvas.height };
-    const canvasW = heatCanvas.width / (window.devicePixelRatio || 1);
-    const canvasH = heatCanvas.height / (window.devicePixelRatio || 1);
-    const px = (e.offsetX / (heatCanvas.width / canvasW));
-    const py = (e.offsetY / (heatCanvas.height / canvasH));
-    state.trailData.push({ x: px, y: py, val: state.currentAnomaly });
-    if (state.trailData.length > 500) state.trailData.splice(0, 100);
-    drawHeatFrame();
-  });
-  heatCanvas.addEventListener('pointerup', () => { state.paintMode = false; heatPointer = null; });
-  heatCanvas.addEventListener('pointercancel', () => { state.paintMode = false; heatPointer = null; });
-}
-
-function drawHeatFrame() {
-  const canvas = state.heatCanvas;
-  if (!canvas) return;
-  const info = fitCanvas(canvas);
-  if (!info) return;
-  const { ctx, w, h } = info;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#060912'; ctx.fillRect(0, 0, w, h);
-  for (const pt of state.trailData) {
-    const val = clamp(pt.val / (state.anomalyThreshold || 5), 0, 1);
-    let r, g, b;
-    if (val < 0.4) { const t = val / 0.4; r = 160 + 60 * t; g = 30 + 100 * t; b = 200 + 20 * t; }
-    else if (val < 0.7) { const t = (val - 0.4) / 0.3; r = 220 + 35 * t; g = 130 + 120 * t; b = 220 - 200 * t; }
-    else { const t = (val - 0.7) / 0.3; r = 255; g = 250 + 5 * t; b = 20 + 235 * t; }
-    const radius = 3 + val * 8;
-    const alpha = 0.3 + val * 0.5;
-    ctx.fillStyle = 'rgba(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ',' + alpha + ')';
-    ctx.beginPath(); ctx.arc(pt.x * w, pt.y * h, radius, 0, 2 * Math.PI); ctx.fill();
-  }
-  const legendY = h - 16, legendH = 6, legendW = w - 20, legendX = 10;
-  for (let i = 0; i < legendW; i++) {
-    const t = i / legendW;
-    let r, g, b;
-    if (t < 0.4) { const lt = t / 0.4; r = 160 + 60 * lt; g = 30 + 100 * lt; b = 200 + 20 * lt; }
-    else if (t < 0.7) { const lt = (t - 0.4) / 0.3; r = 220 + 35 * lt; g = 130 + 120 * lt; b = 220 - 200 * lt; }
-    else { const lt = (t - 0.7) / 0.3; r = 255; g = 250 + 5 * lt; b = 20 + 235 * lt; }
-    ctx.fillStyle = 'rgb(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ')';
-    ctx.fillRect(legendX + i, legendY, 1, legendH);
-  }
-  ctx.fillStyle = 'rgba(136,146,184,0.6)'; ctx.font = '6px ui-monospace, monospace';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-  ctx.fillText('low', legendX, legendY - 1);
-  ctx.textAlign = 'right'; ctx.fillText('high', legendX + legendW, legendY - 1);
-  if (!state.paintMode && performance.now() % 100 < 5) {
-    state.trailData.push({ x: 0.5 + 0.3 * Math.sin(performance.now() * 0.001), y: 0.5 + 0.3 * Math.cos(performance.now() * 0.0015), val: state.currentAnomaly * 0.3 });
-  }
-}
-
-function drawWaveFrame() {
-  const canvas = state.waveCanvas;
-  if (!canvas) return;
-  const info = fitCanvas(canvas);
-  if (!info) return;
-  const { ctx, w, h } = info;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#060912'; ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = 'rgba(0,240,255,0.04)'; ctx.lineWidth = 0.5;
-  for (let x = 0; x < w; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-  for (let y = 0; y < h; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-  ctx.strokeStyle = 'rgba(0,240,255,0.1)'; ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
-  ctx.fillStyle = 'rgba(136,146,184,0.4)'; ctx.font = '7px ui-monospace, monospace';
-  ctx.fillText('+', 2, 10); ctx.fillText('0', 2, h / 2 + 3); ctx.fillText('-', 2, h - 4);
-  const n = Math.min(state.bufPos, 200);
-  if (n < 2) return;
-  const scale = h * 0.38 / Math.max(1, (state.baselineZ || 45) * 1.2);
-  const axes = [
-    { buf: state.xBuf, color: '#00f0ff', width: 1.5 },
-    { buf: state.yBuf, color: '#ffd700', width: 1.2 },
-    { buf: state.zBuf, color: '#a855f7', width: 1.2 }
-  ];
-  for (const ax of axes) {
-    ctx.strokeStyle = ax.color; ctx.lineWidth = ax.width;
-    ctx.shadowColor = ax.color; ctx.shadowBlur = 4;
-    ctx.beginPath();
-    for (let i = 0; i < n; i++) {
-      const v = ax.buf[(state.bufPos - n + i) % 300];
-      if (v == null) continue;
-      const xPos = (state.bufPos - n + i) / state.bufPos * w;
-      const yPos = h / 2 - v * scale;
-      if (i === 0) ctx.moveTo(xPos, yPos); else ctx.lineTo(xPos, yPos);
+    if (!ok && typeof window.UncalibratedMagnetometer === 'function') {
+      try {
+        var raw = new window.UncalibratedMagnetometer({ frequency: 60 });
+        state.sensor = raw;
+        raw.addEventListener('reading', function () {
+          addSample(raw.x, raw.y, raw.z);
+          if (!state.live) {
+            state.live = true; state.demo = false;
+            setBadge(false);
+            updateStatus('UncalibratedMagnetometer active', 'LIVE');
+          }
+        });
+        raw.addEventListener('error', function () { fallbackToDemo(); });
+        raw.start();
+        ok = true;
+        updateStatus('UncalibratedMagnetometer active', 'LIVE');
+      } catch (e) {
+        console.warn('[mag] UncalibratedMagnetometer failed', e);
+        ok = false;
+      }
     }
-    ctx.stroke(); ctx.shadowBlur = 0;
-  }
-  if (state.fpsEl) state.fpsEl.textContent = Loop.getFPS() + ' FPS';
-}
 
-function drawLoop() {
-  if (!isActive) return;
-  if (state.toneActive && state.toneOsc && state.toneCtx) {
-    try { state.toneOsc.frequency.setTargetAtTime(60 + state.currentAnomaly * 8, state.toneCtx.currentTime, 0.05); } catch (_) {}
+    if (!ok) fallbackToDemo();
+
+    startLoop();
   }
-  drawWaveFrame();
-  drawHeatFrame();
-}
+
+  function fallbackToDemo() {
+    if (state.demo) return;
+    state.demo = true;
+    state.live = false;
+    removeAlertBanner();
+    setBadge(true);
+    updateStatus('Demo \u2014 synthetic 48 \u00b5T field (no magnetometer)', 'demo');
+  }
+
+  function stopMeasurement() {
+    state.measuring = false;
+    state.demo = false;
+    state.live = false;
+    if (state.sensor) { try { state.sensor.stop(); } catch (e) {} state.sensor = null; }
+    if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+    if (state.osc) { try { state.osc.stop(); } catch (e) {} state.osc = null; }
+    if (state.audioCtx) { try { state.audioCtx.close(); } catch (e) {} state.audioCtx = null; }
+    if (els.toggleBtn) els.toggleBtn.textContent = 'Start Measurement';
+    setBadge(false);
+    updateStatus('Idle \u2014 press Start to begin', 'IDLE');
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Samples                                                             */
+  /* ------------------------------------------------------------------ */
+
+  function addSample(x, y, z) {
+    state.x = x; state.y = y; state.z = z;
+    state.total = Math.sqrt(x * x + y * y + z * z);
+    if (state.baseline) {
+      var dx = x - state.baseline.x, dy = y - state.baseline.y, dz = z - state.baseline.z;
+      state.anomaly = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    } else {
+      state.anomaly = 0;
+    }
+    state.lastSampleAt = performance.now();
+    updateReadouts();
+  }
+
+  // Synthetic 48 uT field: slow tilt + anomalies, constant magnitude.
+  function nextDemoSample() {
+    state.demoT += 1 / 60;
+    var t = state.demoT;
+    // Walk a unit vector around the sphere; scale to exactly EARTH_FIELD.
+    var theta = t * 0.10;
+    var phi = 0.9 + 0.35 * Math.sin(t * 0.05);
+    var ux = Math.sin(phi) * Math.cos(theta);
+    var uy = Math.sin(phi) * Math.sin(theta);
+    var uz = Math.cos(phi);
+    var burst = Math.random() > 0.95 ? 8 * (Math.random() - 0.5) : 0;
+    return {
+      x: ux * EARTH_FIELD + (Math.random() - 0.5) * 0.6,
+      y: uy * EARTH_FIELD + (Math.random() - 0.5) * 0.6,
+      z: uz * EARTH_FIELD + burst + (Math.random() - 0.5) * 0.6
+    };
+  }
+
+  function calibrate() {
+    state.baseline = { x: state.x, y: state.y, z: state.z, total: state.total };
+    updateStatus('Calibrated at ' + state.total.toFixed(1) + ' \u00b5T');
+  }
+
+  function resetTrail() {
+    state.heatPoints = [];
+    if (heatCtx && heatCanvas) {
+      var rect = heatCanvas.getBoundingClientRect();
+      heatCtx.setTransform(1, 0, 0, 1, 0, 0);
+      heatCtx.clearRect(0, 0, heatCanvas.width, heatCanvas.height);
+      drawEmpty(heatCanvas, 'Heat map \u2014 drag here while measuring');
+    }
+  }
+
+  function toggleTone() {
+    state.toneOn = !state.toneOn;
+    var label = els.toneBtn ? els.toneBtn.querySelector('.label') : null;
+    if (label) label.textContent = state.toneOn ? 'Tone: On' : 'Tone: Off';
+    if (state.toneOn && !state.audioCtx) {
+      try {
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        state.osc = state.audioCtx.createOscillator();
+        state.osc.type = 'square'; state.osc.frequency.value = 800;
+        state.osc.connect(state.audioCtx.destination); state.osc.start();
+      } catch (e) { state.toneOn = false; if (label) label.textContent = 'Tone: Off'; }
+    } else if (!state.toneOn && state.osc) {
+      try { state.osc.stop(); } catch (e) {} state.osc = null;
+    }
+  }
+
+  function toggleHaptic() {
+    state.hapticOn = !state.hapticOn;
+    var label = els.hapticBtn ? els.hapticBtn.querySelector('.label') : null;
+    if (label) label.textContent = state.hapticOn ? 'Haptic: On' : 'Haptic: Off';
+  }
+
+  function updateReadouts() {
+    var fmt = function (v) { return isFinite(v) ? v.toFixed(2) : '\u2014'; };
+    if (els.xEl) els.xEl.textContent = fmt(state.x);
+    if (els.yEl) els.yEl.textContent = fmt(state.y);
+    if (els.zEl) els.zEl.textContent = fmt(state.z);
+    if (els.totalEl) els.totalEl.textContent = fmt(state.total);
+
+    var vsEarth = state.total - EARTH_FIELD;
+    if (els.vsEarth) els.vsEarth.textContent = fmt(vsEarth) + ' \u00b5T';
+    var dirText = 'at baseline';
+    if (Math.abs(vsEarth) > 0.5) dirText = vsEarth > 0 ? '\u2191 stronger than Earth' : '\u2193 weaker than Earth';
+    if (els.deviationDir) els.deviationDir.textContent = dirText;
+
+    if (els.anomalyVal) els.anomalyVal.textContent = fmt(state.anomaly) + ' \u00b5T';
+    if (els.anomalyFill) {
+      var pct = Math.min(100, (state.anomaly / state.threshold) * 100);
+      els.anomalyFill.style.width = pct + '%';
+      els.anomalyFill.classList.toggle('danger', state.anomaly > state.threshold);
+      els.anomalyFill.classList.toggle('warning', state.anomaly > state.threshold * 0.7 && state.anomaly <= state.threshold);
+    }
+
+    if (state.toneOn && state.osc && state.audioCtx) {
+      var pitch = 200 + (state.anomaly / state.threshold) * 800;
+      try { state.osc.frequency.value = Math.min(1000, pitch); } catch (e) {}
+    }
+    if (state.hapticOn && state.anomaly > state.threshold && navigator.vibrate) navigator.vibrate(50);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Heat map                                                            */
+  /* ------------------------------------------------------------------ */
+
+  function paintHeatPixel(px, py, value) {
+    if (!heatCtx || !heatCanvas) return;
+    var rect = heatCanvas.getBoundingClientRect();
+    var x = px * rect.width, y = py * rect.height;
+    var intensity = Math.min(1, value / 100);
+    heatCtx.globalAlpha = 0.4;
+    heatCtx.fillStyle = 'rgb(' + Math.floor(intensity * 255) + ',' + Math.floor(intensity * 200) + ',' + Math.floor((1 - intensity) * 168 + intensity * 255) + ')';
+    heatCtx.beginPath(); heatCtx.arc(x, y, 8, 0, 6.2831853); heatCtx.fill();
+    heatCtx.globalAlpha = 1;
+    state.heatPoints.push({ x: x, y: y, v: value });
+    if (state.heatPoints.length > state.maxHeatPoints) state.heatPoints.shift();
+  }
+
+  function drawHeatTrail() {
+    var p = prepCanvas(els.heatCanvas);
+    if (!p) return;
+    var c = p.ctx, w = p.w, h = p.h;
+
+    if (state.heatPoints.length > 0) {
+      for (var i = 0; i < state.heatPoints.length; i++) {
+        var pt = state.heatPoints[i];
+        var intensity = Math.min(1, pt.v / 100);
+        c.globalAlpha = 0.3 * (1 - i / state.heatPoints.length);
+        c.fillStyle = 'rgb(' + Math.floor(intensity * 255) + ',' + Math.floor(intensity * 200) + ',' + Math.floor((1 - intensity) * 168 + intensity * 255) + ')';
+        c.beginPath(); c.arc(pt.x, pt.y, 4, 0, 6.2831853); c.fill();
+      }
+      c.globalAlpha = 1;
+    } else {
+      // Live trail: the field sample walks across the map.
+      c.strokeStyle = 'rgba(168,85,247,0.65)';
+      c.lineWidth = 1.4;
+      c.beginPath();
+      for (var k = 0; k < waveHistory.length; k++) {
+        var v = waveHistory[k];
+        var x = ((v.x / 60) + 1) / 2 * w;
+        var y = ((v.z / 60) + 1) / 2 * h;
+        if (k === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      c.stroke();
+      var last = waveHistory[waveHistory.length - 1];
+      if (last) {
+        var lx = ((last.x / 60) + 1) / 2 * w;
+        var ly = ((last.z / 60) + 1) / 2 * h;
+        c.fillStyle = '#a855f7';
+        c.shadowColor = '#a855f7'; c.shadowBlur = 8;
+        c.beginPath(); c.arc(lx, ly, 4, 0, 6.2831853); c.fill();
+        c.shadowBlur = 0;
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Waveform                                                            */
+  /* ------------------------------------------------------------------ */
+
+  function prepCanvas(canvas) {
+    if (!canvas) return null;
+    var rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    var c = canvas.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, rect.width, rect.height);
+    return { ctx: c, w: rect.width, h: rect.height };
+  }
+
+  function drawWave() {
+    var p = prepCanvas(els.waveCanvas);
+    if (!p) return;
+    if (waveHistory.length < 2) { drawEmpty(els.waveCanvas, 'Waiting for samples\u2026'); return; }
+
+    var c = p.ctx, w = p.w, h = p.h;
+    var range = 1;
+    for (var i = 0; i < waveHistory.length; i++) {
+      var v = waveHistory[i];
+      var m = Math.max(Math.abs(v.x), Math.abs(v.y), Math.abs(v.z));
+      if (m > range) range = m;
+    }
+    range *= 1.15;
+
+    var axes = [{ k: 'x', col: '#00f0ff' }, { k: 'y', col: '#ffd700' }, { k: 'z', col: '#a855f7' }];
+    for (var a = 0; a < axes.length; a++) {
+      c.strokeStyle = axes[a].col;
+      c.lineWidth = 1.4;
+      c.shadowColor = axes[a].col;
+      c.shadowBlur = 4;
+      c.beginPath();
+      for (i = 0; i < waveHistory.length; i++) {
+        var x = (i / (waveHistory.length - 1)) * w;
+        var y = h / 2 + (waveHistory[i][axes[a].k] / range) * (h / 2) * 0.85;
+        if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      c.stroke();
+    }
+    c.shadowBlur = 0;
+
+    c.font = '9px sans-serif'; c.textAlign = 'left'; c.textBaseline = 'top';
+    c.fillStyle = '#00f0ff'; c.fillText('X', 4, 4);
+    c.fillStyle = '#ffd700'; c.fillText('Y', 4, 16);
+    c.fillStyle = '#a855f7'; c.fillText('Z', 4, 28);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Loop                                                                */
+  /* ------------------------------------------------------------------ */
+
+  function startLoop() {
+    if (state.rafId) cancelAnimationFrame(state.rafId);
+    lastFrame = 0;
+
+    function draw(ts) {
+      if (!state.measuring || !state.active) { state.rafId = null; return; }
+      state.rafId = requestAnimationFrame(draw);
+      if (ts - lastFrame < 33) return;
+      lastFrame = ts;
+
+      // Watchdog: never stay LIVE with no data.
+      if (!state.demo && state.lastSampleAt && (performance.now() - state.lastSampleAt) > 500) {
+        fallbackToDemo();
+      }
+
+      if (state.demo) {
+        var s = nextDemoSample();
+        addSample(s.x, s.y, s.z);
+      }
+
+      waveHistory.push({ x: state.x, y: state.y, z: state.z });
+      if (waveHistory.length > 256) waveHistory.shift();
+
+      if (els.fpsEl) els.fpsEl.textContent = '30 fps';
+      drawWave();
+      drawHeatTrail();
+    }
+    state.rafId = requestAnimationFrame(draw);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Lifecycle                                                           */
+  /* ------------------------------------------------------------------ */
+
+  function activate() {
+    if (state.active) return;
+    state.active = true;
+    init();
+    updateStatus('Idle \u2014 press Start to begin', 'IDLE');
+    // Demo mode on -> data flows immediately, no red banner, purple chip.
+    var badge = document.querySelector('#panel-magnetic .sim-badge');
+    if (badge && !badge.classList.contains('hidden')) startMeasurement();
+  }
+
+  function deactivate() {
+    state.active = false;
+    if (state.measuring) stopMeasurement();
+    if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+  }
+
+  window.FI.magnetic = {
+    activate: activate,
+    deactivate: deactivate,
+    init: activate,
+    destroy: deactivate,
+    toggle: toggleMeasurement,
+    start: startMeasurement,
+    stop: stopMeasurement,
+    state: state
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { activate(); });
+  else activate();
+})();

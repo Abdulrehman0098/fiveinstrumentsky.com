@@ -1,3 +1,6 @@
+(function() {
+'use strict';
+
 /* ============================================================
    theme.js — persisted theme cycle: galaxy -> daylight -> night
    ============================================================ */
@@ -10,7 +13,7 @@ const THEME_COLOR = {
   night: "#000000"
 };
 
-export const Theme = {
+const Theme = {
   current: "galaxy",
 
   init() {
@@ -44,7 +47,7 @@ export const Theme = {
     } catch (_) {}
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.content = THEME_COLOR[this.current] || "#02040a";
-    SensorBus.emit("themechange", this.current);
+    window.FI.bus.emit("themechange", this.current);
   },
 
   getCycleLabel() {
@@ -55,5 +58,12 @@ export const Theme = {
   }
 };
 
-export function getThemeName() { return Theme.current; }
-export function cycleTheme() { Theme.cycle(); }
+function getThemeName() { return Theme.current; }
+function cycleTheme() { Theme.cycle(); }
+
+Theme.loadFromStorage = function() { Theme.init(); };
+Theme.saveToStorage = function() { try { safeStorage.set(STORAGE_KEY, Theme.current); } catch(_) {} };
+
+window.FI = window.FI || {};
+window.FI.theme = Theme;
+})();

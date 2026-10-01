@@ -1,268 +1,171 @@
-/* ============================================================
-   main.js — app bootstrapping, tab switching, diagnostics,
-   install prompt, service worker, wake lock.
-   First statement sets window.__FI_BOOTED.
-   ============================================================ */
-import { Diagnostics } from "./diagnostics.js";
-
-window.__FI_BOOTED = true;
-
-const errorLog = {
-  entries: [],
-  MAX: 50,
-  push(type, message, source, lineno, colno) {
-    if (this.entries.length >= this.MAX) this.entries.shift();
-    this.entries.push({ type, message: message || String(message), source: source || "", lineno: lineno || 0, colno: colno || 0, ts: new Date().toISOString() });
-  },
-  getAll() { return this.entries.slice(); }
-};
-
-window.addEventListener("error", (e) => {
-  errorLog.push("error", e.message, e.filename || "", e.lineno || 0, e.colno || 0);
-  toast(`Error: ${e.message}`, "warning");
-});
-
-window.addEventListener("unhandledrejection", (e) => {
-  errorLog.push("unhandledrejection", e.reason ? String(e.reason) : "unhandled rejection", "", 0, 0);
-  toast(`Unhandled: ${e.reason ? String(e.reason) : "unknown"}`, "warning");
-});
-
-function toast(msg, type = "info", duration = 4000) {
-  const region = document.getElementById("toast-region");
-  if (!region) return;
-  const el = document.createElement("div");
-  el.className = "toast";
-  if (type === "warning") el.style.borderColor = "rgba(239,68,68,0.4)";
-  if (type === "error") el.style.borderColor = "rgba(239,68,68,0.6)";
-  el.textContent = msg;
-  region.appendChild(el);
-  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, duration);
-}
-
-const moduleCache = new Map();
-
-async function loadInstrument(name) {
-  if (moduleCache.has(name)) return moduleCache.get(name);
-  try {
-    const mod = await import("./instruments/" + name + ".js");
-    const inst = mod[name.charAt(0).toUpperCase() + name.slice(1)] || mod;
-    moduleCache.set(name, inst);
-    return inst;
-  } catch (e) {
-    errorLog.push("import-error", "Failed to load " + name + " : " + (e.message || ""), "", 0, 0);
-    toast("Failed to load " + name + " instrument.", "error");
-    return null;
-  }
-}
-
-let currentInstrument = null;
-let previousInstrument = null;
-const instrumentStates = new Map();
-
-async function activateInstrument(name) {
-  const inst = await loadInstrument(name);
-  if (!inst) return;
-  try {
-    if (typeof inst.activate === "function") await inst.activate();
-    instrumentStates.set(name, { active: true, kind: inst.kind });
-    Loop.setActive(name);
-  } catch (e) {
-    errorLog.push("activate-error", name + " activate failed: " + (e.message || ""), "", 0, 0);
-    toast(name + " instrument failed to start. " + (e.message || ""), "error");
-    const panel = document.getElementById("panel-" + name);
-    if (panel) { const chip = panel.querySelector(".mode-chip"); if (chip) chip.dataset.mode = "error"; }
-  }
-}
-
-async function deactivateInstrument(name) {
-  const inst = instrumentStates.get(name);
-  if (!inst || !inst.active) return;
-  try {
-    const mod = await loadInstrument(name);
-    if (mod && typeof mod.deactivate === "function") await mod.deactivate();
-    instrumentStates.set(name, { active: false, kind: mod ? mod.kind : undefined });
-    Loop.setActive(null);
-  } catch (e) {
-    errorLog.push("deactivate-error", name + " deactivate failed: " + (e.message || ""), "", 0, 0);
-  }
-}
-
-const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
-const panels = Array.from(document.querySelectorAll(".instrument-panel"));
-
-function updateTabIndicator(activeTab) {
-  const indicator = document.querySelector(".tab-indicator");
-  if (!indicator || !activeTab) return;
-  const parent = activeTab.parentElement;
-  if (!parent) return;
-  const rect = activeTab.getBoundingClientRect();
-  const parentRect = parent.getBoundingClientRect();
-  const left = rect.left - parentRect.left + parentRect.width / 2 - 32;
-  indicator.style.left = left + "px";
-}
-
-function setActiveTab(name) {
-  for (const btn of tabButtons) {
-    const isActive = btn.dataset.tab === name;
-    btn.classList.toggle("active", isActive);
-    btn.setAttribute("aria-selected", isActive ? "true" : "false");
-    btn.tabIndex = isActive ? 0 : -1;
-  }
-  for (const panel of panels) {
-    const isPanel = panel.dataset.tab === name;
-    panel.classList.toggle("hidden", !isPanel);
-    panel.classList.toggle("active", isPanel);
-  }
-  updateTabIndicator(tabButtons.find(b => b.dataset.tab === name));
-  window.dispatchEvent(new Event("resize"));
-  if (previousInstrument) deactivateInstrument(previousInstrument).catch(() => {});
-  if (name !== previousInstrument) previousInstrument = currentInstrument;
-  currentInstrument = name;
-  activateInstrument(name).catch(() => {});
-  Diagnostics.updateInstrumentState(name);
-}
-
-for (const btn of tabButtons) {
-  btn.addEventListener("click", () => {
-    const name = btn.dataset.tab;
-    if (name && currentInstrument !== name) setActiveTab(name);
-    if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+(function () {
+  'use strict';
+  window.__FI_BOOTED = true;
+  window.FI = window.FI || {};
+  window.FI.__errors = window.FI.__errors || [];
+  window.addEventListener('error', function (e) {
+    window.FI.__errors.push({ t: Date.now(), msg: e.message, src: e.filename, line: e.lineno });
   });
-  btn.addEventListener("keydown", (e) => {
-    const tabs = tabButtons;
-    const idx = tabs.indexOf(btn);
-    if (e.key === "ArrowRight") { e.preventDefault(); const next = tabs[(idx + 1) % tabs.length]; next.focus(); if (currentInstrument !== next.dataset.tab) setActiveTab(next.dataset.tab); }
-    else if (e.key === "ArrowLeft") { e.preventDefault(); const prev = tabs[(idx - 1 + tabs.length) % tabs.length]; prev.focus(); if (currentInstrument !== prev.dataset.tab) setActiveTab(prev.dataset.tab); }
-    else if (e.key === "Home") { e.preventDefault(); const first = tabs[0]; first.focus(); if (currentInstrument !== first.dataset.tab) setActiveTab(first.dataset.tab); }
-    else if (e.key === "End") { e.preventDefault(); const last = tabs[tabs.length - 1]; last.focus(); if (currentInstrument !== last.dataset.tab) setActiveTab(last.dataset.tab); }
-    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const name = btn.dataset.tab; if (name && currentInstrument !== name) setActiveTab(name); }
+  window.addEventListener('unhandledrejection', function (e) {
+    window.FI.__errors.push({ t: Date.now(), msg: String(e.reason) });
   });
-}
 
-window.addEventListener("hashchange", () => {
-  const hash = location.hash.replace("#", "");
-  const valid = ["stars", "sound", "vibration", "magnetic", "altimeter"];
-  if (hash && valid.includes(hash) && currentInstrument !== hash) setActiveTab(hash);
-});
+  var currentTab = 'stars';
 
-(function initHash() {
-  const hash = location.hash.replace("#", "");
-  const defaultTab = hash && ["stars", "sound", "vibration", "magnetic", "altimeter"].includes(hash) ? hash : "stars";
-  for (const btn of tabButtons) {
-    const isActive = btn.dataset.tab === defaultTab;
-    btn.classList.toggle("active", isActive);
-    btn.setAttribute("aria-selected", isActive ? "true" : "false");
-    btn.tabIndex = isActive ? 0 : -1;
-  }
-  for (const panel of panels) {
-    const isPanel = panel.dataset.tab === defaultTab;
-    panel.classList.toggle("hidden", !isPanel);
-    panel.classList.toggle("active", isPanel);
-  }
-  updateTabIndicator(tabButtons.find(b => b.dataset.tab === defaultTab));
-  currentInstrument = defaultTab;
-  previousInstrument = null;
-  window.dispatchEvent(new Event("resize"));
-  activateInstrument(defaultTab).catch(() => {});
-})();
+  function showTab(name) {
+    var panels = document.querySelectorAll('.instrument-panel');
+    var tabs = document.querySelectorAll('.tab-btn');
+    var i;
 
-const unitBtn = document.getElementById("unit-toggle-btn");
-unitBtn.addEventListener("click", () => {
-  toggleUnits();
-  const isImperial = Units.system === "imperial";
-  unitBtn.setAttribute("data-unit", isImperial ? "imperial" : "metric");
-  const label = unitBtn.querySelector(".label");
-  if (label) label.textContent = isImperial ? "IMPERIAL" : "METRIC";
-});
-
-const demoBtn = document.getElementById("demo-toggle-btn");
-demoBtn.addEventListener("click", () => {
-  Demo.setEnabled(!Demo.isEnabled());
-  demoBtn.setAttribute("aria-pressed", Demo.isEnabled() ? "true" : "false");
-  const label = demoBtn.querySelector(".label");
-  if (label) label.textContent = Demo.isEnabled() ? "DEMO ON" : "DEMO OFF";
-  for (const panel of panels) {
-    const chip = panel.querySelector(".mode-chip");
-    const badge = panel.querySelector(".sim-badge");
-    if (Demo.isEnabled()) { if (chip) chip.dataset.mode = "demo"; if (badge) badge.classList.remove("hidden"); }
-    else { if (chip) chip.dataset.mode = "idle"; if (badge) badge.classList.add("hidden"); }
-  }
-  toast(Demo.isEnabled() ? "Demo mode enabled — sensor data is simulated." : "Demo mode disabled.", "info");
-});
-
-const themeBtn = document.getElementById("theme-toggle-btn");
-if (themeBtn) {
-  themeBtn.addEventListener("click", () => {
-    Theme.cycle();
-    const label = themeBtn.querySelector(".label");
-    if (label) label.textContent = Theme.getCycleLabel();
-    toast("Theme: " + Theme.current, "info");
-  });
-  themeBtn.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); themeBtn.click(); } });
-}
-
-const installBtn = document.getElementById("install-btn");
-let beforeInstallPromptEvent = null;
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  beforeInstallPromptEvent = e;
-  installBtn.classList.remove("hidden");
-  installBtn.addEventListener("click", async () => {
-    try {
-      if (beforeInstallPromptEvent) {
-        beforeInstallPromptEvent.prompt();
-        const { outcome } = await beforeInstallPromptEvent.userChoice;
-        toast(outcome === "accepted" ? "App installed." : "Install dismissed.", "info");
-        beforeInstallPromptEvent = null;
-      }
-    } catch (_) { toast("Install not available on this browser.", "warning"); }
-  }, { once: true });
-});
-
-let wakeLock = null;
-async function acquireWakeLock() {
-  if (!navigator.wakeLock || document.hidden) return;
-  try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } catch (_) {}
-}
-async function releaseWakeLock() {
-  if (wakeLock) { try { wakeLock.release(); } catch (_) {} wakeLock = null; }
-}
-document.addEventListener("visibilitychange", () => { if (document.hidden) releaseWakeLock(); });
-setInterval(() => { if (currentInstrument && !document.hidden && navigator.wakeLock) acquireWakeLock().catch(() => {}); }, 5000);
-
-if (location.protocol === "http:" || location.protocol === "https:") {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js", { scope: "./" }).then(reg => {
-      if (reg.waiting) toast("Update available — reload to apply.", "info");
-    }).catch(() => {});
-  }
-}
-
-import("./galaxy.js").then(({ bootGalaxy, observeGalaxy }) => { bootGalaxy(); observeGalaxy(); }).catch(() => {});
-
-async function autoDemo() {
-  setTimeout(async () => {
-    const results = {};
-    let anyAvailable = false;
-    try { const g = await Permissions.geolocation(); results.geolocation = g; if (g === "granted") anyAvailable = true; } catch (_) { results.geolocation = "unsupported"; }
-    try { const m = await Permissions.microphone(); results.microphone = m; if (m === "granted") anyAvailable = true; } catch (_) { results.microphone = "unsupported"; }
-    try { const dm = await Permissions.deviceMotion(); results.deviceMotion = dm; if (dm === "granted") anyAvailable = true; } catch (_) { results.deviceMotion = "unsupported"; }
-    try { const mo = await Permissions.deviceOrientation(); results.deviceOrientation = mo; if (mo === "granted") anyAvailable = true; } catch (_) { results.deviceOrientation = "unsupported"; }
-    try { const mg = await Permissions.magnetometer(); results.magnetometer = mg; if (mg === "granted") anyAvailable = true; } catch (_) { results.magnetometer = "unsupported"; }
-    if (!anyAvailable && !Demo.isEnabled()) {
-      Demo.setEnabled(true);
-      demoBtn.setAttribute("aria-pressed", "true");
-      const label = demoBtn.querySelector(".label");
-      if (label) label.textContent = "DEMO ON";
-      for (const panel of panels) {
-        const chip = panel.querySelector(".mode-chip");
-        const badge = panel.querySelector(".sim-badge");
-        if (chip) chip.dataset.mode = "demo";
-        if (badge) badge.classList.remove("hidden");
-      }
-      toast("No sensors available — Demo mode enabled.", "info");
+    for (i = 0; i < tabs.length; i++) {
+      tabs[i].classList.remove('active');
+      tabs[i].setAttribute('aria-selected', 'false');
+      tabs[i].setAttribute('tabindex', '-1');
     }
-  }, 1500);
-}
+    for (i = 0; i < panels.length; i++) {
+      panels[i].classList.add('hidden');
+      panels[i].classList.remove('active');
+    }
 
-autoDemo();
+    var activeTab = document.querySelector('.tab-btn[data-tab="' + name + '"]');
+    if (activeTab) {
+      activeTab.classList.add('active');
+      activeTab.setAttribute('aria-selected', 'true');
+      activeTab.setAttribute('tabindex', '0');
+    }
+
+    var activePanel = document.getElementById('panel-' + name);
+    if (activePanel) {
+      activePanel.classList.remove('hidden');
+      activePanel.classList.add('active');
+    }
+
+    // Deactivate previous instrument
+    if (currentTab !== name) {
+      var prev = window.FI[currentTab];
+      if (prev && typeof prev.deactivate === 'function') {
+        try { prev.deactivate(); } catch (e) {}
+      }
+    }
+
+    // Activate new instrument
+    var inst = window.FI[name];
+    if (inst && typeof inst.activate === 'function') {
+      try { inst.activate(); } catch (e) { console.error('[main] activate ' + name, e); }
+    }
+
+    // 0x0 canvas recovery
+    window.dispatchEvent(new Event('resize'));
+
+    if (location.hash !== '#' + name) {
+      try { history.replaceState(null, '', '#' + name); } catch (e) {}
+    }
+
+    currentTab = name;
+  }
+
+  function bindTabs() {
+    var tabs = document.querySelectorAll('.tab-btn');
+    for (var i = 0; i < tabs.length; i++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          showTab(btn.getAttribute('data-tab'));
+        });
+        btn.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            showTab(btn.getAttribute('data-tab'));
+          }
+        });
+      })(tabs[i]);
+    }
+  }
+
+  function bindHeaderButtons() {
+    var unitBtn = document.getElementById('unit-toggle-btn');
+    var demoBtn = document.getElementById('demo-toggle-btn');
+    var themeBtn = document.getElementById('theme-toggle-btn');
+
+    if (unitBtn) unitBtn.addEventListener('click', function () {
+      var pressed = unitBtn.getAttribute('aria-pressed') === 'true';
+      unitBtn.setAttribute('aria-pressed', String(!pressed));
+      unitBtn.textContent = pressed ? 'Metric' : 'Imperial';
+      try {
+        window.dispatchEvent(new CustomEvent('unitschange', {
+          detail: { system: pressed ? 'metric' : 'imperial' }
+        }));
+      } catch (e) {}
+    });
+
+    if (demoBtn) demoBtn.addEventListener('click', function () {
+      var pressed = demoBtn.getAttribute('aria-pressed') === 'true';
+      var turningOn = !pressed;
+      demoBtn.setAttribute('aria-pressed', String(turningOn));
+      var badges = document.querySelectorAll('.sim-badge');
+      for (var i = 0; i < badges.length; i++) {
+        if (turningOn) badges[i].classList.remove('hidden');
+        else badges[i].classList.add('hidden');
+      }
+      if (window.FI && window.FI.demo && typeof window.FI.demo.setEnabled === 'function') {
+        try { window.FI.demo.setEnabled(turningOn); } catch (e) {}
+      }
+      // Demo ON -> the visible instrument must start producing data immediately.
+      if (turningOn) {
+        var inst = window.FI[currentTab];
+        if (inst && typeof inst.start === 'function') {
+          try { inst.start(); } catch (e) {}
+        }
+      }
+    });
+
+    if (themeBtn) themeBtn.addEventListener('click', function () {
+      var order = ['galaxy', 'daylight', 'night'];
+      var cur = document.documentElement.getAttribute('data-theme') || 'galaxy';
+      var next = order[(order.indexOf(cur) + 1) % order.length];
+      document.documentElement.setAttribute('data-theme', next);
+      themeBtn.setAttribute('aria-pressed', String(next !== 'galaxy'));
+      try { localStorage.setItem('fi-theme', next); } catch (e) {}
+    });
+  }
+
+  // Wire every instrument button that might be dead.
+  function bindInstrumentButtons() {
+    [
+      ['sound-toggle-btn', '#sound-status', 'sound'],
+      ['vib-toggle-btn', '#vib-status', 'vibration'],
+      ['mag-toggle-btn', '#mag-status', 'magnetic'],
+      ['alt-start-btn', '#alt-status', 'altimeter']
+    ].forEach(function (row) {
+      var btn = document.getElementById(row[0]);
+      // Only wire buttons no instrument module has already claimed - binding a
+      // second listener would fire toggle() twice (start then immediate stop).
+      if (!btn || btn._wired || btn._bound) return;
+      btn._wired = true;
+      btn.addEventListener('click', function () {
+        var inst = window.FI[row[2]];
+        if (inst && typeof inst.toggle === 'function') {
+          try { inst.toggle(); } catch (e) { console.error(e); }
+        } else {
+          var s = document.querySelector(row[1]);
+          if (s) s.textContent = s.textContent === 'Idle' ? 'Starting\u2026' : 'Idle';
+        }
+      });
+    });
+  }
+
+  function init() {
+    bindTabs();
+    bindHeaderButtons();
+    bindInstrumentButtons();
+    var initial = (location.hash || '#stars').replace('#', '');
+    if (!document.getElementById('panel-' + initial)) initial = 'stars';
+    showTab(initial);
+    console.log('[main] booted, tab =', initial);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

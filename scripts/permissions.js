@@ -1,3 +1,6 @@
+(function() {
+'use strict';
+
 /* ============================================================
    permissions.js — orchestrator for all sensor states.
    Returns friendly states: granted | denied | prompt | unsupported | insecure
@@ -5,7 +8,7 @@
 
 const isInsecure = location.protocol === "http:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
 
-export const Permissions = {
+const Permissions = {
   secureContext: !isInsecure,
   isFile: location.protocol === "file:",
 
@@ -146,7 +149,7 @@ export const Permissions = {
   }
 };
 
-export async function requestIOSMotionPermission() {
+async function requestIOSMotionPermission() {
   if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
     try {
       const r = await DeviceMotionEvent.requestPermission();
@@ -156,7 +159,7 @@ export async function requestIOSMotionPermission() {
   return "denied";
 }
 
-export async function requestIOSOrientationPermission() {
+async function requestIOSOrientationPermission() {
   if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
     try {
       const r = await DeviceOrientationEvent.requestPermission();
@@ -165,3 +168,8 @@ export async function requestIOSOrientationPermission() {
   }
   return "denied";
 }
+
+
+window.FI = window.FI || {};
+window.FI.permissions = Permissions;
+})();

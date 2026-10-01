@@ -1,3 +1,6 @@
+(function() {
+'use strict';
+
 /* ============================================================
    loop.js — ONE shared rAF scheduler.
    Only the ACTIVE panel's callbacks run.  Pauses on hidden.
@@ -12,7 +15,7 @@ let fpsAccum = 0;
 let fpsDisplay = 0;
 const FPS_UPDATE_INTERVAL = 1000;
 
-export const Loop = {
+const Loop = {
   register(name, fn, targetFps = 60) {
     callbacks.set(name, { fn, fps: targetFps, lastDraw: 0, accumulator: 0 });
   },
@@ -100,3 +103,8 @@ document.addEventListener("visibilitychange", () => {
     Loop.start();
   }
 });
+
+
+window.FI = window.FI || {};
+window.FI.loop = Loop;
+})();

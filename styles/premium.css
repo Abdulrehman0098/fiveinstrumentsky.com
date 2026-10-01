@@ -1,0 +1,398 @@
+/* ============================================================
+   premium.css — modern SaaS-dashboard layer
+   Loaded LAST so it layers glass, gradients and motion on top of
+   base/components/instruments/themes/responsive without editing them.
+
+   Rules:
+   - Every var() keeps a literal fallback, so the design still holds
+     if themes.css is the file that fails to load.
+   - The neon gold/cyan identity is preserved; this only adds depth.
+   - No rule here sets `display` on an element the JS toggles, so
+     .hidden and the panel show/hide logic are untouched.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Typography tokens — Inter for text, JetBrains Mono for data.
+   Declared on every theme selector so it beats the equal-or-higher
+   specificity `html[data-theme="night"]` block in themes.css.
+   ------------------------------------------------------------ */
+:root,
+html[data-theme="galaxy"],
+html[data-theme="daylight"],
+html[data-theme="night"] {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", "SFMono-Regular", "Courier New", monospace;
+
+  /* Glass + depth tokens */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-bg-strong: rgba(16, 21, 38, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-blur: 10px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur: 0.22s;
+}
+
+html[data-theme="daylight"] {
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(30, 45, 90, 0.14);
+  --shadow-md: 0 6px 24px rgba(40, 60, 110, 0.16);
+  --shadow-lg: 0 16px 48px rgba(40, 60, 110, 0.20);
+}
+
+html[data-theme="night"] {
+  --glass-bg: rgba(60, 0, 0, 0.18);
+  --glass-bg-strong: rgba(20, 0, 0, 0.62);
+  --glass-border: rgba(140, 20, 20, 0.28);
+  --shadow-md: none;
+  --shadow-lg: none;
+}
+
+/* ------------------------------------------------------------
+   Body text — components.css sets a literal font stack on body
+   that would otherwise win over the --font-sans token.
+   ------------------------------------------------------------ */
+body {
+  font-family: var(--font-sans, "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+}
+
+/* ------------------------------------------------------------
+   Ambient background gradients
+   body is `background: transparent !important` in components.css,
+   so the real page backdrop is html. Paint the gradient there.
+   ------------------------------------------------------------ */
+html {
+  background-color: var(--bg, #02040a);
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% -10%, rgba(0, 240, 255, 0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 45% at 12% 18%, rgba(168, 85, 247, 0.09) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 88% 8%, rgba(255, 215, 0, 0.07) 0%, transparent 55%),
+    linear-gradient(180deg, #04070f 0%, #02040a 45%, #05070e 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+html[data-theme="daylight"] {
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% -10%, rgba(120, 160, 230, 0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 45% at 85% 12%, rgba(255, 215, 0, 0.16) 0%, transparent 55%),
+    linear-gradient(180deg, #eef3fc 0%, #e2e9f7 100%);
+}
+html[data-theme="night"] {
+  background-image: none;
+}
+
+/* ------------------------------------------------------------
+   Glass surfaces — applied to every "card" class in the project.
+   ------------------------------------------------------------ */
+.readout-card,
+.chart-block,
+.celestial-item,
+.stars-info-card,
+.stars-search-result,
+.vibration-axis,
+.magnetic-axis,
+.instrument-panel,
+.diagnostics-content,
+.diagnostics-toggle,
+.faq-item {
+  background: var(--glass-bg-strong, rgba(16, 21, 38, 0.62));
+  backdrop-filter: blur(var(--glass-blur, 10px)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 10px)) saturate(1.4);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
+  box-shadow: var(--shadow-md, 0 6px 24px rgba(0, 0, 0, 0.45));
+}
+
+/* Keep the accent edges the original design relied on, as an inset
+   ring so the glass border above does not erase them. */
+.instrument-panel {
+  box-shadow:
+    var(--shadow-lg, 0 16px 48px rgba(0, 0, 0, 0.55)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(0, 240, 255, 0.06);
+}
+.readout-card.major,
+.vibration-axis.major,
+.magnetic-axis.major {
+  border-color: rgba(255, 215, 0, 0.42);
+  box-shadow:
+    var(--shadow-md, 0 6px 24px rgba(0, 0, 0, 0.45)),
+    0 0 22px rgba(255, 215, 0, 0.10),
+    inset 0 1px 0 rgba(255, 215, 0, 0.14);
+}
+
+/* ------------------------------------------------------------
+   Micro-interactions
+   ------------------------------------------------------------ */
+.readout-card,
+.chart-block,
+.celestial-item,
+.vibration-axis,
+.magnetic-axis {
+  transition:
+    transform var(--dur, 0.22s) var(--ease, ease),
+    box-shadow var(--dur, 0.22s) var(--ease, ease),
+    border-color var(--dur, 0.22s) var(--ease, ease);
+}
+@media (hover: hover) {
+  .readout-card:hover,
+  .vibration-axis:hover,
+  .magnetic-axis:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0, 240, 255, 0.34);
+    box-shadow: var(--shadow-lg, 0 16px 48px rgba(0, 0, 0, 0.55));
+  }
+  .celestial-item:hover {
+    transform: translateX(3px);
+    border-color: rgba(0, 240, 255, 0.34);
+  }
+}
+
+/* Buttons: gradient fill + lift */
+.primary-btn {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.16), rgba(168, 85, 247, 0.16));
+  box-shadow:
+    0 4px 18px rgba(0, 240, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  transition:
+    transform var(--dur, 0.22s) var(--ease, ease),
+    box-shadow var(--dur, 0.22s) var(--ease, ease),
+    background var(--dur, 0.22s) var(--ease, ease);
+}
+.primary-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.28), rgba(168, 85, 247, 0.28));
+  box-shadow: 0 8px 28px rgba(0, 240, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+.primary-btn:active { transform: translateY(0) scale(0.985); }
+
+.secondary-btn,
+.toggle-btn,
+.icon-btn,
+.reset-inline {
+  transition:
+    transform var(--dur, 0.22s) var(--ease, ease),
+    background var(--dur, 0.22s) var(--ease, ease),
+    border-color var(--dur, 0.22s) var(--ease, ease),
+    box-shadow var(--dur, 0.22s) var(--ease, ease),
+    color var(--dur, 0.22s) var(--ease, ease);
+}
+.secondary-btn:hover,
+.toggle-btn:hover,
+.icon-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 240, 255, 0.14);
+}
+.secondary-btn:active,
+.toggle-btn:active,
+.icon-btn:active { transform: translateY(0) scale(0.98); }
+
+/* Tabs: animated accent bar on the active item */
+.tab-btn {
+  transition:
+    color var(--dur, 0.22s) var(--ease, ease),
+    background var(--dur, 0.22s) var(--ease, ease),
+    box-shadow var(--dur, 0.22s) var(--ease, ease);
+}
+.tab-btn.active {
+  background: linear-gradient(180deg, rgba(255, 215, 0, 0.14), rgba(255, 215, 0, 0.03));
+  box-shadow: inset 0 -2px 0 rgba(255, 215, 0, 0.85), 0 0 20px rgba(255, 215, 0, 0.10);
+}
+
+/* Header / shell glass */
+.site-header,
+.top-shell,
+.tab-bar {
+  background: rgba(6, 9, 18, 0.72);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+html[data-theme="daylight"] .site-header,
+html[data-theme="daylight"] .top-shell,
+html[data-theme="daylight"] .tab-bar { background: rgba(240, 245, 255, 0.78); }
+html[data-theme="night"] .site-header,
+html[data-theme="night"] .top-shell,
+html[data-theme="night"] .tab-bar { background: rgba(8, 0, 0, 0.82); }
+
+/* ------------------------------------------------------------
+   Logo — hard cap so the mark can never render oversized, even
+   if this stylesheet is the only one that loads.
+   ------------------------------------------------------------ */
+.logo-link { width: 40px; height: 40px; flex-shrink: 0; }
+.logo-mark {
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.45));
+}
+
+/* ------------------------------------------------------------
+   Section headings (shared by FAQ + footer)
+   ------------------------------------------------------------ */
+.faq-section,
+.site-footer {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max-w, 1280px);
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.section-head { margin-bottom: 18px; }
+.section-title {
+  font-family: var(--font-sans, Inter, system-ui, sans-serif);
+  font-size: clamp(1.15rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gold, #ffd700);
+  text-shadow: 0 0 24px rgba(255, 215, 0, 0.16);
+}
+.section-sub {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--ink-dim, #8892b8);
+}
+
+/* ------------------------------------------------------------
+   FAQ accordion
+   ------------------------------------------------------------ */
+.faq-list {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+.faq-item {
+  border-radius: 14px;
+  overflow: hidden;
+  transition:
+    border-color var(--dur, 0.22s) var(--ease, ease),
+    box-shadow var(--dur, 0.22s) var(--ease, ease),
+    background var(--dur, 0.22s) var(--ease, ease);
+}
+@media (hover: hover) {
+  .faq-item:hover { border-color: rgba(0, 240, 255, 0.32); }
+}
+.faq-item.open {
+  border-color: rgba(255, 215, 0, 0.42);
+  box-shadow:
+    var(--shadow-md, 0 6px 24px rgba(0, 0, 0, 0.45)),
+    0 0 26px rgba(255, 215, 0, 0.09);
+}
+
+.faq-question-wrap { margin: 0; font-weight: inherit; }
+
+.faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 56px;
+  padding: 15px 18px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: var(--ink, #e8ecf4);
+  font-family: var(--font-sans, Inter, system-ui, sans-serif);
+  font-size: clamp(0.88rem, 1.6vw, 0.98rem);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition: color var(--dur, 0.22s) var(--ease, ease);
+}
+.faq-question:hover { color: var(--cyan, #00f0ff); }
+.faq-question:focus-visible {
+  outline: 2px solid var(--cyan, #00f0ff);
+  outline-offset: -3px;
+}
+.faq-item.open .faq-question { color: var(--gold, #ffd700); }
+.faq-q-text { flex: 1; min-width: 0; }
+
+/* Chevron drawn with borders — no icon font, no extra request. */
+.faq-icon {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform var(--dur, 0.22s) var(--ease, ease);
+  opacity: 0.75;
+}
+.faq-item.open .faq-icon {
+  transform: rotate(-135deg) translateY(-2px);
+  opacity: 1;
+}
+
+.faq-answer {
+  padding: 0 18px;
+  color: var(--ink-soft, #9aa6c8);
+  font-size: 0.88rem;
+  line-height: 1.62;
+  transition:
+    max-height 0.28s var(--ease, ease),
+    opacity 0.24s var(--ease, ease),
+    padding 0.24s var(--ease, ease);
+}
+/* Bottom padding only while open — otherwise a collapsed answer
+   still occupies ~16px of padding outside its zeroed content box. */
+.faq-item.open .faq-answer { padding-bottom: 16px; }
+.faq-answer p { margin: 0; }
+/* Left accent rule that matches the instrument cards. */
+.faq-answer::before {
+  content: "";
+  display: block;
+  height: 1px;
+  margin-bottom: 12px;
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.42), transparent 70%);
+}
+
+/* ------------------------------------------------------------
+   Footer
+   ------------------------------------------------------------ */
+.site-footer {
+  padding-top: 8px;
+  padding-bottom: 28px;
+}
+.footer-text {
+  padding-top: 18px;
+  border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
+  text-align: center;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint, #4a5578);
+}
+
+/* ------------------------------------------------------------
+   Responsive — FAQ goes two-up on wide screens.
+   ------------------------------------------------------------ */
+@media (min-width: 900px) {
+  .faq-list { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .faq-item:nth-child(5) { grid-column: 1 / -1; }
+}
+@media (max-width: 479px) {
+  .faq-section, .site-footer { padding-left: 10px; padding-right: 10px; }
+  .faq-question { padding: 13px 14px; font-size: 0.86rem; }
+  .faq-answer { padding: 0 14px 14px; font-size: 0.83rem; }
+  .logo-link, .logo-mark { width: 32px; height: 32px; max-width: 32px; max-height: 32px; }
+
+  /* The full wordmark is ~188px and pushed the third header control
+     (Theme) off-screen, where `overflow-x: hidden` hid it silently.
+     Drop to the logo mark only so all three buttons stay reachable. */
+  .wordmark { display: none; }
+}
+
+/* ------------------------------------------------------------
+   Motion preference — honour reduced motion last.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .readout-card, .chart-block, .celestial-item, .vibration-axis,
+  .magnetic-axis, .primary-btn, .secondary-btn, .toggle-btn, .icon-btn,
+  .tab-btn, .faq-item, .faq-icon, .faq-question {
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
+}

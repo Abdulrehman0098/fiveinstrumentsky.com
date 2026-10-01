@@ -1,358 +1,533 @@
-/* ============================================================
-   instruments/vibration.js — VIBRATION ANALYZER
-   ============================================================ */
+(function () {
+  'use strict';
+  window.FI = window.FI || {};
 
-import { Demo } from '../demo.js';
-import { formatUnit, EMA, RingBuffer, safeStorage, clamp } from '../utils.js';
-import FFT from '../lib/fft.js';
+  var RING = 512;          // ring buffer size (samples)
+  var READOUT_MS = 100;    // readout refresh interval
+  var WATCHDOG_MS = 500;   // no-sample timeout before downgrading LIVE -> DEMO
 
-let state = null;
-let isActive = false;
-let accelSensor = null;
-let lastSampleTime = 0;
-let sampleBuffer = [];
-let thresholdTriggered = false;
-const FFT_SIZE = 128;
-
-export function init() {
-  state = {
-    xEl: null, yEl: null, zEl: null, magEl: null, gTotalEl: null,
-    rmsEl: null, peakEl: null, peakFreqEl: null, crestEl: null,
-    sensitivityEl: null, sensitivityDisplayEl: null, spectrumRangeEl: null,
-    spectrumCanvas: null, waveCanvas: null, fpsEl: null, eventsEl: null,
-    peakResetBtn: null, statusEl: null,
-    currentX: 0, currentY: 0, currentZ: 0,
-    currentMagnitude: 0, currentRMS: 0, currentPeak: 0,
-    currentPeakFreq: 0, currentCrest: 0, currentGTOTAL: 0,
-    accelX: new RingBuffer(300), accelY: new RingBuffer(300), accelZ: new RingBuffer(300),
-    fftBuffer: new RingBuffer(FFT_SIZE * 4),
-    demoTime: 0, sensitivity: 1
+  var state = {
+    active: false,
+    measuring: false,
+    demo: false,
+    live: false,
+    sensitivity: 1.5,
+    sampleRate: 60,
+    peakHold: 0,
+    peak: 0,
+    rms: 0,
+    crest: 0,
+    magnitude: 0,
+    x: 0, y: 0, z: 0,
+    peakFreq: 0,
+    lastSampleAt: 0,
+    rafId: null,
+    demoTimer: null,
+    demoT: 0
   };
-}
 
-export function activate() {
-  if (!state || isActive) return;
-  isActive = true;
-  state.xEl = document.getElementById('vib-x');
-  state.yEl = document.getElementById('vib-y');
-  state.zEl = document.getElementById('vib-z');
-  state.magEl = document.getElementById('vib-magnitude');
-  state.gTotalEl = document.getElementById('vib-g-total');
-  state.rmsEl = document.getElementById('vib-rms');
-  state.peakEl = document.getElementById('vib-peak');
-  state.peakFreqEl = document.getElementById('vib-peak-freq');
-  state.crestEl = document.getElementById('vib-crest');
-  state.sensitivityEl = document.getElementById('vib-sensitivity');
-  state.sensitivityDisplayEl = document.getElementById('vib-sensitivity-display');
-  state.spectrumRangeEl = document.getElementById('vib-spectrum-range');
-  state.spectrumCanvas = document.getElementById('vib-spectrum-canvas');
-  state.waveCanvas = document.getElementById('vib-wave-canvas');
-  state.fpsEl = document.getElementById('vib-wave-fps');
-  state.eventsEl = document.getElementById('vib-events');
-  state.peakResetBtn = document.getElementById('vib-peak-reset');
-  state.statusEl = document.getElementById('vib-status');
+  // Ring buffer
+  var ring = new Float32Array(RING * 3);
+  var times = new Float64Array(RING);
+  var head = 0;
+  var count = 0;
 
-  const sens = document.getElementById('vib-sensitivity');
-  if (sens) state.sensitivity = parseFloat(sens.value) || 1;
+  var els = {};
+  var lastReadout = 0;
+  var fpsAccum = 0, fpsCount = 0, fpsShown = 0, fpsAt = 0;
 
-  const chip = document.querySelector('#panel-vibration .mode-chip');
-  const badge = document.querySelector('#panel-vibration .sim-badge');
-  state.statusEl.textContent = 'Initializing…';
+  /* ------------------------------------------------------------------ */
 
-  if (location.protocol === 'file:') {
-    state.statusEl.textContent = 'file:// — open via START.bat to use sensors';
-    if (chip) chip.dataset.mode = 'unsupported';
-    return;
+  function pushSample(x, y, z, t) {
+    if (!state.measuring) return;
+    var i3 = head * 3;
+    ring[i3] = x; ring[i3 + 1] = y; ring[i3 + 2] = z;
+    times[head] = t;
+    head = (head + 1) % RING;
+    if (count < RING) count++;
+    state.lastSampleAt = performance.now();
   }
 
-  const hasAccel = 'Accelerometer' in window || 'LinearAccelerationSensor' in window;
-  if (!hasAccel) {
-    if (!window.DeviceMotionEvent) {
-      state.statusEl.textContent = 'No vibration sensor — use Demo';
-      if (chip) chip.dataset.mode = 'unsupported';
-      badge?.classList.remove('hidden');
-      Demo.setEnabled(true);
-      isActive = false;
-      return;
-    }
-    startDeviceMotion(chip, badge);
-  } else {
-    try {
-      accelSensor = new LinearAccelerationSensor({ frequency: 60 });
-      accelSensor.addEventListener('reading', onAccelReading);
-      accelSensor.addEventListener('error', onAccelError);
-      accelSensor.start();
-      if (chip) chip.dataset.mode = 'live';
-      state.statusEl.textContent = 'Accelerometer active';
-    } catch (e) {
-      if (e.name === 'SecurityError' || e.name === 'NotAllowedError') {
-        state.statusEl.textContent = 'Permission denied — use Demo';
-        if (chip) chip.dataset.mode = 'denied';
-        badge?.classList.remove('hidden');
-        Demo.setEnabled(true);
-        isActive = false;
-        return;
+  // newest-first index -> ring slot
+  function slotAgo(ago) { return (head - 1 - ago + RING * 2) % RING; }
+
+  /* ------------------------------------------------------------------ */
+
+  function updateStatus(text, chip) {
+    var s = document.getElementById('vib-status');
+    if (s) s.textContent = text || '';
+    var c = document.getElementById('panel-vibration');
+    if (c) {
+      var chipEl = c.querySelector('.mode-chip');
+      if (chipEl && chip) {
+        chipEl.textContent = chip;
+        chipEl.setAttribute('data-mode', chip.toLowerCase());
       }
+    }
+  }
+
+  function setBadge(visible) {
+    var badge = document.querySelector('#panel-vibration .sim-badge');
+    if (badge) badge.classList.toggle('hidden', !visible);
+  }
+
+  function init() {
+    els.toggleBtn = document.getElementById('vib-toggle-btn');
+    els.magnitude = document.getElementById('vib-magnitude');
+    els.xEl = document.getElementById('vib-x');
+    els.yEl = document.getElementById('vib-y');
+    els.zEl = document.getElementById('vib-z');
+    els.gTotal = document.getElementById('vib-g-total');
+    els.crest = document.getElementById('vib-crest');
+    els.rmsEl = document.getElementById('vib-rms');
+    els.peakEl = document.getElementById('vib-peak');
+    els.peakReset = document.getElementById('vib-peak-reset');
+    els.peakFreqEl = document.getElementById('vib-peak-freq');
+    els.sensitivitySlider = document.getElementById('vib-sensitivity');
+    els.sensitivityDisplay = document.getElementById('vib-sensitivity-display');
+    els.spectrumRange = document.getElementById('vib-spectrum-range');
+    els.waveCanvas = document.getElementById('vib-wave-canvas');
+    els.spectrumCanvas = document.getElementById('vib-spectrum-canvas');
+    els.waveFps = document.getElementById('vib-wave-fps');
+    els.events = document.getElementById('vib-events');
+    els.status = document.getElementById('vib-status');
+
+    if (els.toggleBtn && !els.toggleBtn._bound) {
+      els.toggleBtn._bound = true;
+      els.toggleBtn.addEventListener('click', toggleMeasurement);
+    }
+    if (els.peakReset) els.peakReset.addEventListener('click', function () {
+      state.peakHold = 0; state.peak = 0; updateReadouts(true);
+    });
+    if (els.sensitivitySlider) els.sensitivitySlider.addEventListener('input', function () {
+      state.sensitivity = parseFloat(els.sensitivitySlider.value) || 1;
+      if (els.sensitivityDisplay) els.sensitivityDisplay.textContent = state.sensitivity.toFixed(1) + ' \u00d7';
+    });
+
+    if (els.sensitivitySlider) {
+      state.sensitivity = parseFloat(els.sensitivitySlider.value) || 1.5;
+      if (els.sensitivityDisplay) els.sensitivityDisplay.textContent = state.sensitivity.toFixed(1) + ' \u00d7';
+    }
+
+    drawEmpty(els.waveCanvas, 'No data yet \u2014 press Start');
+    drawEmpty(els.spectrumCanvas, 'No data yet \u2014 press Start');
+  }
+
+  function drawEmpty(canvas, message) {
+    if (!canvas) return;
+    var r = canvas.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    var c = canvas.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.fillStyle = 'rgba(2,4,10,0.7)'; c.fillRect(0, 0, r.width, r.height);
+    c.strokeStyle = 'rgba(0,240,255,0.08)'; c.lineWidth = 1;
+    for (var x = 0; x < r.width; x += 40) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, r.height); c.stroke(); }
+    for (var y = 0; y < r.height; y += 30) { c.beginPath(); c.moveTo(0, y); c.lineTo(r.width, y); c.stroke(); }
+    c.fillStyle = 'rgba(232,237,255,0.4)'; c.font = '12px ui-sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(message, r.width / 2, r.height / 2);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Start / stop                                                        */
+  /* ------------------------------------------------------------------ */
+
+  function toggleMeasurement() {
+    if (state.measuring) stopMeasurement(); else startMeasurement();
+  }
+
+  function startMeasurement() {
+    if (state.measuring) return;
+
+    if (els.toggleBtn) els.toggleBtn.textContent = 'Stop Measurement';
+    state.measuring = true;
+    state.demo = false;
+    state.live = false;
+    count = 0; head = 0;
+
+    updateStatus('Starting sensors\u2026', 'idle');
+
+    var ok = false;
+
+    // 1. Generic Sensor API
+    if (typeof window.LinearAccelerationSensor === 'function') {
       try {
-        accelSensor = new Accelerometer({ frequency: 60 });
-        accelSensor.addEventListener('reading', onAccelReading);
-        accelSensor.start();
-        if (chip) chip.dataset.mode = 'live';
-        state.statusEl.textContent = 'Accelerometer (with gravity) — active';
-      } catch (_) {
-        startDeviceMotion(chip, badge);
+        var sensor = new window.LinearAccelerationSensor({ frequency: 60 });
+        state.sensor = sensor;
+        sensor.addEventListener('reading', function () {
+          pushSample(sensor.x, sensor.y, sensor.z, performance.now());
+        });
+        sensor.addEventListener('error', function (e) {
+          console.warn('[vib] sensor error', e && e.error);
+          fallbackToDemo();
+        });
+        sensor.start();
+        ok = true;
+        updateStatus('LinearAccelerationSensor active', 'LIVE');
+      } catch (e) {
+        console.warn('[vib] LinearAccelerationSensor failed', e);
+        ok = false;
       }
+    }
+
+    // 2. DeviceMotionEvent
+    if (!ok && typeof window.DeviceMotionEvent === 'function') {
+      var onMotion = function (e) {
+        var a = e.acceleration || e.accelerationIncludingGravity;
+        if (a && a.x !== null && a.x !== undefined) {
+          pushSample(a.x || 0, a.y || 0, a.z || 0, performance.now());
+          if (!state.live) {
+            state.live = true;
+            state.demo = false;
+            setBadge(false);
+            updateStatus('DeviceMotion active', 'LIVE');
+          }
+        }
+      };
+      if (typeof window.DeviceMotionEvent.requestPermission === 'function') {
+        window.DeviceMotionEvent.requestPermission()
+          .then(function (r) {
+            if (r === 'granted') {
+              window.addEventListener('devicemotion', onMotion);
+              state.motionHandler = onMotion;
+            } else {
+              fallbackToDemo();
+            }
+          })
+          .catch(function () { fallbackToDemo(); });
+      } else {
+        window.addEventListener('devicemotion', onMotion);
+        state.motionHandler = onMotion;
+      }
+    }
+
+    // 3. Last resort
+    if (!ok && typeof window.DeviceMotionEvent !== 'function' &&
+        typeof window.LinearAccelerationSensor !== 'function') {
+      fallbackToDemo();
+    }
+
+    startDrawLoop();
+  }
+
+  function fallbackToDemo() {
+    if (state.demo) return;
+    state.demo = true;
+    state.live = false;
+    setBadge(true);
+    updateStatus('Demo \u2014 synthetic vibration (no hardware sensor)', 'demo');
+    startDemoGenerator();
+  }
+
+  function startDemoGenerator() {
+    if (state.demoTimer) return;
+    state.demoT = 0;
+    state.demoTimer = setInterval(function () {
+      if (!state.measuring) return;
+      state.demoT += 1 / 60;
+      var t = state.demoT;
+      pushSample(
+        0.3 * Math.sin(2 * Math.PI * 4 * t) + 0.05 * (Math.random() - 0.5),
+        0.2 * Math.sin(2 * Math.PI * 12 * t) + 0.05 * (Math.random() - 0.5),
+        9.81 + 0.15 * Math.sin(2 * Math.PI * 27 * t),
+        performance.now()
+      );
+    }, 16);
+  }
+
+  function stopDemoGenerator() {
+    if (state.demoTimer) { clearInterval(state.demoTimer); state.demoTimer = null; }
+  }
+
+  function stopMeasurement() {
+    state.measuring = false;
+    state.live = false;
+    state.demo = false;
+    stopDemoGenerator();
+    if (state.sensor) { try { state.sensor.stop(); } catch (e) {} state.sensor = null; }
+    if (state.motionHandler) {
+      try { window.removeEventListener('devicemotion', state.motionHandler); } catch (e) {}
+      state.motionHandler = null;
+    }
+    if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+    if (els.toggleBtn) els.toggleBtn.textContent = 'Start Measurement';
+    setBadge(false);
+    updateStatus('Idle \u2014 press Start to begin', 'IDLE');
+    drawEmpty(els.waveCanvas, 'No data yet \u2014 press Start');
+    drawEmpty(els.spectrumCanvas, 'No data yet \u2014 press Start');
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Draw loop                                                           */
+  /* ------------------------------------------------------------------ */
+
+  function startDrawLoop() {
+    if (state.rafId) cancelAnimationFrame(state.rafId);
+    var lastFrame = 0;
+
+    function draw(ts) {
+      if (!state.measuring || !state.active) { state.rafId = null; return; }
+      state.rafId = requestAnimationFrame(draw);
+      if (ts - lastFrame < 33) return;
+      lastFrame = ts;
+
+      // ---- Watchdog: never claim LIVE without data ----
+      var since = state.lastSampleAt ? (performance.now() - state.lastSampleAt) : Infinity;
+      if (since > WATCHDOG_MS && !state.demo) {
+        fallbackToDemo();
+      }
+
+      // fps
+      fpsAccum += ts; fpsCount++;
+      if (ts - fpsAt > 1000) {
+        fpsShown = fpsAt ? Math.round(fpsCount * 1000 / (ts - fpsAt)) : fpsCount;
+        fpsAccum = 0; fpsCount = 0; fpsAt = ts;
+        if (els.waveFps) els.waveFps.textContent = fpsShown + ' fps';
+      }
+
+      if (ts - lastReadout > READOUT_MS) {
+        lastReadout = ts;
+        updateReadouts(false);
+      }
+
+      drawWaveform();
+      drawSpectrum();
+    }
+    state.rafId = requestAnimationFrame(draw);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Stats                                                               */
+  /* ------------------------------------------------------------------ */
+
+  function updateReadouts(force) {
+    var n = count;
+    if (n === 0) return;
+
+    var s = state.sensitivity;
+    var newest = slotAgo(0);
+    var x = ring[newest * 3] * s;
+    var y = ring[newest * 3 + 1] * s;
+    var z = ring[newest * 3 + 2] * s;
+    state.x = x; state.y = y; state.z = z;
+    state.magnitude = Math.sqrt(x * x + y * y + z * z);
+
+    // RMS / peak / crest over the whole ring
+    var sumSq = 0, peak = 0;
+    var n3 = n * 3;
+    for (var i = 0; i < n; i++) {
+      var i3 = slotAgo(i) * 3;
+      var ax = ring[i3], ay = ring[i3 + 1], az = ring[i3 + 2];
+      var m2 = ax * ax + ay * ay + az * az;
+      sumSq += m2;
+      if (m2 > peak) peak = m2;
+    }
+    var rms = Math.sqrt(sumSq / n);
+    var peakVal = Math.sqrt(peak);
+    state.rms = rms;
+    if (peakVal > state.peakHold) state.peakHold = peakVal;
+    state.peak = state.peakHold;
+    state.crest = rms > 1e-9 ? state.peak / rms : 0;
+
+    // Sample rate from the two newest timestamps
+    if (n >= 2) {
+      var t0 = times[slotAgo(0)], t1 = times[slotAgo(1)];
+      var dt = Math.abs(t0 - t1);
+      if (dt > 0.0001 && dt < 1000) state.sampleRate = 1000 / dt;
+    }
+
+    // Peak frequency: dominant non-DC bin of the magnitude spectrum
+    state.peakFreq = dominantFreq();
+
+    var fmt = function (v) { return isFinite(v) ? v.toFixed(2) : '\u2014'; };
+    if (els.magnitude) els.magnitude.textContent = fmt(state.magnitude);
+    if (els.xEl) els.xEl.textContent = fmt(state.x);
+    if (els.yEl) els.yEl.textContent = fmt(state.y);
+    if (els.zEl) els.zEl.textContent = fmt(state.z);
+    if (els.gTotal) els.gTotal.textContent = fmt(state.magnitude / 9.80665);
+    if (els.crest) els.crest.textContent = fmt(state.crest);
+    if (els.rmsEl) els.rmsEl.textContent = fmt(state.rms);
+    if (els.peakEl) els.peakEl.textContent = fmt(state.peak);
+    if (els.peakFreqEl) els.peakFreqEl.textContent = isFinite(state.peakFreq) ? state.peakFreq.toFixed(1) : '\u2014';
+    if (els.spectrumRange) {
+      var nyq = state.sampleRate / 2;
+      els.spectrumRange.textContent = '0 \u2013 ' + (nyq >= 1000 ? (nyq / 1000).toFixed(1) + ' kHz' : Math.round(nyq) + ' Hz');
     }
   }
 
-  if (state.peakResetBtn) state.peakResetBtn.addEventListener('click', () => { state.currentPeak = 0; updateReadouts(); });
-  Loop.register('vibration', drawFrame, 60);
-}
-
-export function deactivate() {
-  if (!isActive) return;
-  isActive = false;
-  if (accelSensor) { try { if (typeof accelSensor.stop === 'function') accelSensor.stop(); } catch (_) {} accelSensor = null; }
-  window.removeEventListener('devicemotion', onDeviceMotion);
-  Loop.unregister('vibration');
-  const chip = document.querySelector('#panel-vibration .mode-chip');
-  if (chip) chip.dataset.mode = 'idle';
-  const badge = document.querySelector('#panel-vibration .sim-badge');
-  if (badge) badge.classList.add('hidden');
-  updateReadouts();
-}
-
-function startDeviceMotion(chip, badge) {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS && typeof DeviceMotionEvent.requestPermission === 'function') {
-    state.statusEl.textContent = 'Tap START to enable motion — iOS requires gesture';
-    if (chip) chip.dataset.mode = 'idle';
-    return;
-  }
-  window.addEventListener('devicemotion', onDeviceMotion);
-  state.statusEl.textContent = 'DeviceMotion fallback — active';
-  if (chip) chip.dataset.mode = 'live';
-}
-
-function onDeviceMotion(e) {
-  if (!isActive) return;
-  const accel = e.accelerationIncludingGravity || e.acceleration;
-  if (!accel) return;
-  const now = performance.now();
-  lastSampleTime = now;
-  state.currentX = accel.x || 0;
-  state.currentY = accel.y || 0;
-  state.currentZ = accel.z || 0;
-  state.currentMagnitude = Math.sqrt(state.currentX ** 2 + state.currentY ** 2 + state.currentZ ** 2);
-  state.currentGTOTAL = state.currentMagnitude / 9.80665;
-  state.accelX.push(state.currentX);
-  state.accelY.push(state.currentY);
-  state.accelZ.push(state.currentZ);
-  const n = state.accelX.len;
-  if (n > 0) {
-    let sumSq = 0;
-    for (let i = 0; i < n; i++) sumSq += state.accelX.get(i) ** 2;
-    state.currentRMS = Math.sqrt(sumSq / n);
-  }
-  if (state.currentMagnitude > state.currentPeak) state.currentPeak = state.currentMagnitude;
-  state.currentCrest = state.currentRMS > 0.01 ? state.currentMagnitude / state.currentRMS : 0;
-  computeFFT();
-  updateReadouts();
-  checkEvents();
-}
-
-function onAccelReading(e) {
-  if (!isActive) return;
-  const x = e.reading.x || 0;
-  const y = e.reading.y || 0;
-  const z = e.reading.z || 0;
-  state.currentX = x; state.currentY = y; state.currentZ = z;
-  state.currentMagnitude = Math.sqrt(x ** 2 + y ** 2 + z ** 2);
-  state.currentGTOTAL = state.currentMagnitude / 9.80665;
-  state.accelX.push(x); state.accelY.push(y); state.accelZ.push(z);
-  const n = state.accelX.len;
-  if (n > 0) {
-    let sumSq = 0;
-    for (let i = 0; i < n; i++) sumSq += state.accelX.get(i) ** 2;
-    state.currentRMS = Math.sqrt(sumSq / n);
-  }
-  if (state.currentMagnitude > state.currentPeak) state.currentPeak = state.currentMagnitude;
-  state.currentCrest = state.currentRMS > 0.01 ? state.currentMagnitude / state.currentRMS : 0;
-  computeFFT();
-  updateReadouts();
-  checkEvents();
-}
-
-function onAccelError(e) {
-  if (!isActive) return;
-  console.warn('Accelerometer error:', e);
-  if (state.statusEl) state.statusEl.textContent = 'Sensor error — falling back to demo';
-  Demo.setEnabled(true);
-}
-
-function computeFFT() {
-  const buf = state.fftBuffer;
-  buf.push(state.currentX);
-  buf.push(state.currentY);
-  buf.push(state.currentZ);
-  buf.push(state.currentMagnitude);
-  if (buf.len < FFT_SIZE) return;
-  const data = buf.toArray().slice(-FFT_SIZE);
-  if (data.length < FFT_SIZE) return;
-  const windowed = new Float64Array(FFT_SIZE);
-  for (let i = 0; i < FFT_SIZE; i++) windowed[i] = data[i] * (0.5 * (1 - Math.cos(2 * Math.PI * i / (FFT_SIZE - 1))));
-  const spectrum = FFT.default ? FFT.default(windowed) : fftSimple(windowed);
-  const sampleRate = 60;
-  let maxMag = 0, maxIdx = 0;
-  for (let i = 0; i < spectrum.length / 2; i++) {
-    const mag = Math.sqrt(spectrum[i].re ** 2 + spectrum[i].im ** 2);
-    if (mag > maxMag) { maxMag = mag; maxIdx = i; }
-  }
-  const nyquist = sampleRate / 2;
-  state.currentPeakFreq = maxIdx > 0 ? (maxIdx * nyquist / (spectrum.length / 2)) : 0;
-  if (state.spectrumRangeEl) state.spectrumRangeEl.textContent = '0 – ' + nyquist.toFixed(0) + ' Hz';
-  drawSpectrum(spectrum, sampleRate);
-}
-
-function fftSimple(signal) {
-  const n = signal.length;
-  const m = Math.ceil(Math.log2(n));
-  const M = 1 << m;
-  const re = new Float64Array(M);
-  const im = new Float64Array(M);
-  for (let i = 0; i < n; i++) re[i] = signal[i];
-  for (let i = n; i < M; i++) re[i] = 0;
-  for (let len = 2; len <= M; len *= 2) {
-    const halfLen = len / 2;
-    const wRe = Math.cos(-2 * Math.PI / len);
-    const wIm = Math.sin(-2 * Math.PI / len);
-    for (let i = 0; i < M; i += len) {
-      let curRe = 1, curIm = 0;
-      for (let j = 0; j < halfLen; j++) {
-        const tRe = curRe * re[i + j + halfLen] - curIm * im[i + j + halfLen];
-        const tIm = curRe * im[i + j + halfLen] + curIm * re[i + j + halfLen];
-        re[i + j + halfLen] = re[i + j] - tRe;
-        im[i + j + halfLen] = im[i + j] - tIm;
-        re[i + j] += tRe;
-        im[i + j] += tIm;
-        const newRe = curRe * wRe - curIm * wIm;
-        curIm = curRe * wIm + curIm * wRe;
-        curRe = newRe;
-      }
+  // Real DFT on the magnitude series (N=128). Cheap enough at 10 Hz.
+  function dominantFreq() {
+    var N = Math.min(128, count);
+    if (N < 16) return 0;
+    var sig = new Float64Array(N);
+    var mean = 0;
+    for (var i = 0; i < N; i++) {
+      var i3 = slotAgo(N - 1 - i) * 3;   // oldest -> newest
+      var v = Math.sqrt(ring[i3] * ring[i3] + ring[i3 + 1] * ring[i3 + 1] + ring[i3 + 2] * ring[i3 + 2]);
+      sig[i] = v; mean += v;
     }
+    mean /= N;
+    for (i = 0; i < N; i++) sig[i] -= mean;
+
+    var bestBin = 0, bestMag = 0;
+    var bins = N / 2;
+    for (var k = 1; k < bins; k++) {
+      var re = 0, im = 0;
+      var w = 2 * Math.PI * k / N;
+      for (var t = 0; t < N; t++) {
+        re += sig[t] * Math.cos(w * t);
+        im -= sig[t] * Math.sin(w * t);
+      }
+      var mag = re * re + im * im;
+      if (mag > bestMag) { bestMag = mag; bestBin = k; }
+    }
+    if (!bestBin) return 0;
+    var fs = state.sampleRate > 1 ? state.sampleRate : 60;
+    return bestBin * fs / N;
   }
-  const result = [];
-  for (let i = 0; i < M; i++) result.push({ re: re[i], im: im[i] });
-  return result;
-}
 
-function checkEvents() {
-  const eventsEl = state.eventsEl;
-  if (!eventsEl) return;
-  const threshold = 0.5 * state.sensitivity;
-  const magnitude = state.currentMagnitude;
-  if (magnitude > threshold && !thresholdTriggered) {
-    thresholdTriggered = true;
-    const now = new Date();
-    const timeStr = now.toTimeString().slice(0, 12);
-    const item = document.createElement('div');
-    item.className = 'event-item';
-    item.innerHTML = '<span class="time">' + timeStr + '</span><span>' + magnitude.toFixed(2) + ' m/s² peak @ ' + (isFinite(state.currentPeakFreq) ? state.currentPeakFreq.toFixed(1) : '—') + ' Hz</span>';
-    eventsEl.prepend(item);
-    while (eventsEl.children.length > 20) eventsEl.lastChild?.remove();
-  } else if (magnitude < threshold * 0.8) thresholdTriggered = false;
-}
+  /* ------------------------------------------------------------------ */
+  /* Charts                                                              */
+  /* ------------------------------------------------------------------ */
 
-function updateReadouts() {
-  if (state.xEl) state.xEl.textContent = isFinite(state.currentX) ? state.currentX.toFixed(2) : '—';
-  if (state.yEl) state.yEl.textContent = isFinite(state.currentY) ? state.currentY.toFixed(2) : '—';
-  if (state.zEl) state.zEl.textContent = isFinite(state.currentZ) ? state.currentZ.toFixed(2) : '—';
-  if (state.magEl) state.magEl.textContent = isFinite(state.currentMagnitude) ? state.currentMagnitude.toFixed(2) : '—';
-  if (state.gTotalEl) state.gTotalEl.textContent = isFinite(state.currentGTOTAL) ? state.currentGTOTAL.toFixed(3) + ' g' : '—';
-  if (state.rmsEl) state.rmsEl.textContent = isFinite(state.currentRMS) ? state.currentRMS.toFixed(3) : '—';
-  if (state.peakEl) state.peakEl.textContent = isFinite(state.currentPeak) ? state.currentPeak.toFixed(2) : '—';
-  if (state.peakFreqEl) state.peakFreqEl.textContent = isFinite(state.currentPeakFreq) ? state.currentPeakFreq.toFixed(1) + ' Hz' : '—';
-  if (state.crestEl) state.crestEl.textContent = isFinite(state.currentCrest) ? state.currentCrest.toFixed(2) : '—';
-  if (state.sensitivityDisplayEl) state.sensitivityDisplayEl.textContent = (state.sensitivity * 100).toFixed(0) + '%';
-}
+  function prepCanvas(canvas) {
+    if (!canvas) return null;
+    var rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    var c = canvas.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, rect.width, rect.height);
+    return { ctx: c, w: rect.width, h: rect.height };
+  }
 
-function drawFrame() {
-  if (!isActive) return;
-  drawWave();
-}
+  function drawWaveform() {
+    var p = prepCanvas(els.waveCanvas);
+    if (!p) return;
+    if (count < 2) { drawEmpty(els.waveCanvas, 'Waiting for samples\u2026'); return; }
 
-function drawWave() {
-  const canvas = state.waveCanvas;
-  if (!canvas || !canvas.parentElement) return;
-  const info = fitCanvas(canvas);
-  if (!info) return;
-  const { ctx, w, h } = info;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#060912'; ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = 'rgba(0,240,255,0.06)'; ctx.lineWidth = 0.5;
-  for (let x = 0; x < w; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-  for (let y = 0; y < h; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-  ctx.strokeStyle = 'rgba(0,240,255,0.12)'; ctx.lineWidth = 0.6;
-  ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
-  ctx.fillStyle = 'rgba(136,146,184,0.4)'; ctx.font = '7px ui-monospace, monospace'; ctx.textAlign = 'left';
-  ctx.fillText('+g', 2, 12); ctx.fillText('0', 2, h / 2 + 3); ctx.fillText('-g', 2, h - 4);
-  const n = Math.min(state.accelX.len + state.accelY.len + state.accelZ.len, 200);
-  if (n > 1) {
-    const stepX = w / n;
-    const scale = h * 0.4 / Math.max(1, state.currentPeak * 1.5 || 1);
-    const axes = [
-      { buf: state.accelX, color: '#00f0ff', width: 1.5 },
-      { buf: state.accelY, color: '#ffd700', width: 1.2 },
-      { buf: state.accelZ, color: '#a855f7', width: 1.2 }
+    var n = Math.min(256, count);
+    var c = p.ctx, w = p.w, h = p.h;
+
+    // Range from the visible tail only
+    var range = 0.01;
+    for (var i = 0; i < n; i++) {
+      var i3 = slotAgo(n - 1 - i) * 3;
+      var m = Math.max(Math.abs(ring[i3]), Math.abs(ring[i3 + 1]), Math.abs(ring[i3 + 2]));
+      if (m > range) range = m;
+    }
+    range *= 1.2;
+
+    var axes = [
+      { off: 0, color: '#00f0ff' },
+      { off: 1, color: '#ffd700' },
+      { off: 2, color: '#a855f7' }
     ];
-    for (const ax of axes) {
-      ctx.strokeStyle = ax.color; ctx.lineWidth = ax.width;
-      ctx.shadowColor = ax.color; ctx.shadowBlur = 4;
-      ctx.beginPath();
-      for (let i = 0; i < n; i++) {
-        const v = ax.buf.get(i);
-        if (v == null) continue;
-        const xPos = i * stepX;
-        const yPos = h / 2 - v * scale;
-        if (i === 0) ctx.moveTo(xPos, yPos); else ctx.lineTo(xPos, yPos);
+    for (var a = 0; a < axes.length; a++) {
+      c.strokeStyle = axes[a].color;
+      c.lineWidth = 1.4;
+      c.shadowColor = axes[a].color;
+      c.shadowBlur = 4;
+      c.beginPath();
+      for (var k = 0; k < n; k++) {
+        var idx = slotAgo(n - 1 - k) * 3 + axes[a].off;
+        var px = (k / (n - 1)) * w;
+        var py = h / 2 + (ring[idx] / range) * (h / 2) * 0.85;
+        if (k === 0) c.moveTo(px, py); else c.lineTo(px, py);
       }
-      ctx.stroke(); ctx.shadowBlur = 0;
+      c.stroke();
     }
-  }
-  if (state.fpsEl) state.fpsEl.textContent = Loop.getFPS() + ' FPS';
-  ctx.font = '7px ui-monospace, monospace';
-  ctx.fillStyle = '#00f0ff'; ctx.fillText('X', w - 30, 12);
-  ctx.fillStyle = '#ffd700'; ctx.fillText('Y', w - 50, 12);
-  ctx.fillStyle = '#a855f7'; ctx.fillText('Z', w - 70, 12);
-}
+    c.shadowBlur = 0;
 
-function drawSpectrum(spectrum, sampleRate) {
-  const canvas = state.spectrumCanvas;
-  if (!canvas) return;
-  const info = fitCanvas(canvas);
-  if (!info) return;
-  const { ctx, w, h } = info;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#060912'; ctx.fillRect(0, 0, w, h);
-  const half = spectrum.length / 2;
-  const maxBin = Math.min(half, w);
-  const stepX = w / maxBin;
-  let maxMag = 0;
-  for (let i = 0; i < half; i++) { const m = Math.sqrt(spectrum[i].re ** 2 + spectrum[i].im ** 2); if (m > maxMag) maxMag = m; }
-  for (let i = 0; i < maxBin; i++) {
-    const mag = Math.sqrt(spectrum[i].re ** 2 + spectrum[i].im ** 2);
-    const norm = maxMag > 0 ? mag / maxMag : 0;
-    const y = h - norm * (h - 4) - 2;
-    const barH = norm * (h - 4);
-    const t = i / maxBin;
-    let r, g, b;
-    if (t < 0.4) { r = 0; g = 240; b = 255; }
-    else if (t < 0.7) { r = 168 * (t - 0.4) / 0.3; g = 240 - 155 * (t - 0.4) / 0.3; b = 255 - 8 * (t - 0.4) / 0.3; }
-    else { r = 168 + 87 * (t - 0.7) / 0.3; g = 85 + 130 * (t - 0.7) / 0.3; b = 247 - 247 * (t - 0.7) / 0.3; }
-    ctx.fillStyle = 'rgba(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ',' + (0.5 + norm * 0.4) + ')';
-    ctx.fillRect(i * stepX, y, stepX - 0.5, barH);
-    if (i === Math.round(state.currentPeakFreq / sampleRate * 2 * maxBin) && state.currentPeakFreq > 0) {
-      ctx.fillStyle = '#ffd700'; ctx.fillRect(i * stepX - 0.5, 0, stepX + 0.5, 4);
+    c.font = '9px sans-serif'; c.textAlign = 'left'; c.textBaseline = 'top';
+    c.fillStyle = '#00f0ff'; c.fillText('X', 4, 4);
+    c.fillStyle = '#ffd700'; c.fillText('Y', 4, 16);
+    c.fillStyle = '#a855f7'; c.fillText('Z', 4, 28);
+  }
+
+  function drawSpectrum() {
+    var p = prepCanvas(els.spectrumCanvas);
+    if (!p) return;
+    if (count < 32) { drawEmpty(els.spectrumCanvas, 'Waiting for samples\u2026'); return; }
+
+    var c = p.ctx, w = p.w, h = p.h;
+    var N = Math.min(128, count);
+    var sig = new Float64Array(N);
+    var mean = 0;
+    for (var i = 0; i < N; i++) {
+      var i3 = slotAgo(N - 1 - i) * 3;
+      var v = Math.sqrt(ring[i3] * ring[i3] + ring[i3 + 1] * ring[i3 + 1] + ring[i3 + 2] * ring[i3 + 2]);
+      sig[i] = v; mean += v;
+    }
+    mean /= N;
+    for (i = 0; i < N; i++) sig[i] -= mean;
+
+    var bins = N / 2;
+    var mags = new Float64Array(bins);
+    var maxMag = 1e-9;
+    for (var k = 1; k < bins; k++) {
+      var re = 0, im = 0;
+      var wv = 2 * Math.PI * k / N;
+      for (var t = 0; t < N; t++) {
+        re += sig[t] * Math.cos(wv * t);
+        im -= sig[t] * Math.sin(wv * t);
+      }
+      var mag = Math.sqrt(re * re + im * im) / N;
+      mags[k] = mag;
+      if (mag > maxMag) maxMag = mag;
+    }
+
+    var bw = w / bins;
+    for (k = 1; k < bins; k++) {
+      var barH = Math.max(1, (mags[k] / maxMag) * h * 0.9);
+      var hue = 200 - (k / bins) * 180;
+      c.fillStyle = 'hsla(' + hue + ', 100%, 60%, 0.6)';
+      c.fillRect((k - 1) * bw, h - barH, Math.max(1, bw - 1), barH);
+    }
+
+    // Mark the dominant bin
+    var bestBin = 0, best = 0;
+    for (k = 1; k < bins; k++) if (mags[k] > best) { best = mags[k]; bestBin = k; }
+    if (bestBin) {
+      var px = (bestBin - 0.5) * bw;
+      c.strokeStyle = '#ffd700'; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(px, 0); c.lineTo(px, h); c.stroke();
     }
   }
-}
+
+  /* ------------------------------------------------------------------ */
+  /* Lifecycle                                                           */
+  /* ------------------------------------------------------------------ */
+
+  function activate() {
+    if (state.active) return;
+    state.active = true;
+    init();
+    updateStatus('Idle \u2014 press Start to begin', 'IDLE');
+    drawEmpty(els.waveCanvas, 'No data yet \u2014 press Start');
+    drawEmpty(els.spectrumCanvas, 'No data yet \u2014 press Start');
+  }
+
+  function deactivate() {
+    state.active = false;
+    if (state.measuring) stopMeasurement();
+    if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+  }
+
+  window.FI.vibration = {
+    activate: activate,
+    deactivate: deactivate,
+    init: activate,
+    destroy: deactivate,
+    toggle: toggleMeasurement,
+    state: state
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { activate(); });
+  else activate();
+})();

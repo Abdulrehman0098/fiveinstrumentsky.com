@@ -1,3 +1,6 @@
+(function() {
+'use strict';
+
 /* ============================================================
    sensor-bus.js — tiny pub/sub with sticky last-value cache
    ============================================================ */
@@ -6,7 +9,7 @@ const handlers = new Map();
 const lastValues = new Map();
 let cbId = 0;
 
-export const SensorBus = {
+const SensorBus = {
   on(type, fn) {
     if (!handlers.has(type)) handlers.set(type, new Set());
     handlers.get(type).add(fn);
@@ -37,3 +40,8 @@ export const SensorBus = {
     lastValues.clear();
   }
 };
+
+
+window.FI = window.FI || {};
+window.FI.sensorBus = SensorBus;
+})();

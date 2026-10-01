@@ -2,7 +2,7 @@
    fft.js — radix-2 FFT, returns array of {re, im}
    ============================================================ */
 
-export default function fft(signal) {
+function fft(signal) {
   const N = signal.length;
   const m = Math.ceil(Math.log2(N));
   const M = 1 << m;
