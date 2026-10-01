@@ -26,6 +26,7 @@ html[data-theme="night"] {
   /* Glass + depth tokens */
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-bg-strong: rgba(16, 21, 38, 0.62);
+  --glass-panel: rgba(15, 20, 35, 0.7);
   --glass-border: rgba(255, 255, 255, 0.09);
   --glass-blur: 10px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -38,6 +39,9 @@ html[data-theme="night"] {
 html[data-theme="daylight"] {
   --glass-bg: rgba(255, 255, 255, 0.55);
   --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  /* Daylight ink is dark, so panels must be light — a dark glass panel
+     would put #1a1a2e text on a near-black surface. */
+  --glass-panel: rgba(255, 255, 255, 0.62);
   --glass-border: rgba(30, 45, 90, 0.14);
   --shadow-md: 0 6px 24px rgba(40, 60, 110, 0.16);
   --shadow-lg: 0 16px 48px rgba(40, 60, 110, 0.20);
@@ -46,6 +50,7 @@ html[data-theme="daylight"] {
 html[data-theme="night"] {
   --glass-bg: rgba(60, 0, 0, 0.18);
   --glass-bg-strong: rgba(20, 0, 0, 0.62);
+  --glass-panel: rgba(18, 0, 0, 0.74);
   --glass-border: rgba(140, 20, 20, 0.28);
   --shadow-md: none;
   --shadow-lg: none;
@@ -508,7 +513,7 @@ html[data-theme="night"] .tab-bar { background: rgba(8, 0, 0, 0.82); }
   flex-direction: column;
   gap: 2px;
   padding: 6px;
-  background: rgba(15, 20, 35, 0.72);
+  background: var(--glass-panel, rgba(15, 20, 35, 0.72));
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.10));
@@ -517,7 +522,7 @@ html[data-theme="night"] .tab-bar { background: rgba(8, 0, 0, 0.82); }
 .search-result[data-state="empty"] {
   display: block;
   padding: 9px 12px;
-  background: rgba(15, 20, 35, 0.72);
+  background: var(--glass-panel, rgba(15, 20, 35, 0.72));
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.10));
   border-radius: 10px;
   color: var(--ink-dim, #8892b8);
@@ -571,7 +576,7 @@ html[data-theme="night"] .tab-bar { background: rgba(8, 0, 0, 0.82); }
 .star-info-panel {
   position: relative;
   padding: 14px;
-  background: rgba(15, 20, 35, 0.72);
+  background: var(--glass-panel, rgba(15, 20, 35, 0.72));
   backdrop-filter: blur(15px) saturate(1.4);
   -webkit-backdrop-filter: blur(15px) saturate(1.4);
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.10));
@@ -682,11 +687,23 @@ html[data-theme="night"] .tab-bar { background: rgba(8, 0, 0, 0.82); }
 .faq-item,
 .readout-card,
 .chart-block {
-  background: rgba(15, 20, 35, 0.7);
+  background: var(--glass-panel, rgba(15, 20, 35, 0.7));
   backdrop-filter: blur(15px) saturate(1.4);
   -webkit-backdrop-filter: blur(15px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="daylight"] .instrument-panel,
+html[data-theme="daylight"] .faq-item,
+html[data-theme="daylight"] .readout-card,
+html[data-theme="daylight"] .chart-block {
+  box-shadow: 0 10px 30px rgba(40, 60, 110, 0.18);
+}
+html[data-theme="night"] .instrument-panel,
+html[data-theme="night"] .faq-item,
+html[data-theme="night"] .readout-card,
+html[data-theme="night"] .chart-block {
+  box-shadow: none;
 }
 
 /* Logo glow */
