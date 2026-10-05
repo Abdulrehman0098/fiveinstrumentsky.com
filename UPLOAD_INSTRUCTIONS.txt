@@ -1,0 +1,39 @@
+
+HOW TO UPLOAD FIELD INSTRUMENTS
+
+1. Open your hosting panel (cPanel, Netlify, Cloudflare Pages, or your
+   provider's file manager).
+
+2. Navigate to the web root. This is usually called:
+     public_html  (cPanel / most shared hosting)
+     www          (some hosts)
+     /            (Netlify drag-and-drop, Cloudflare Pages)
+
+3. Upload the ENTIRE contents of this folder:
+     index.html
+     favicon.svg
+     styles/       (the whole folder)
+     scripts/      (the whole folder)
+     data/         (if it exists)
+     UPLOAD_INSTRUCTIONS.txt  (this file)
+
+   DO NOT upload only index.html. The styles/ folder is REQUIRED.
+   DO NOT rename the styles/ or scripts/ folders.
+   DO NOT flatten the folder structure.
+
+4. After upload, verify in your browser:
+     https://fiveinstrumentsky.xyz/styles/base.css
+
+   You should see CSS text. If you see a 404 page or HTML, the upload
+   did not work. Re-upload the styles/ folder.
+
+5. If you use Cloudflare, purge the cache:
+     Cloudflare Dashboard -> Caching -> Configuration -> Purge Everything.
+
+6. Hard-refresh the site in your browser:
+     Windows: Ctrl + Shift + R
+     Mac:     Cmd + Shift + R
+
+7. If the site still looks unstyled, open DevTools (F12), go to the
+   Network tab, reload, and look for red 404 errors on any .css file.
+   Send those error URLs to the developer.
