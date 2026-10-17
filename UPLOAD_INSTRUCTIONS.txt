@@ -1,0 +1,34 @@
+
+HOW TO UPLOAD FIELD INSTRUMENTS
+
+1. Open your hosting panel (cPanel, Netlify, Cloudflare Pages, or your
+   provider's file manager).
+
+2. Navigate to the web root. This is usually called:
+     public_html  (cPanel / most shared hosting)
+     www          (some hosts)
+     /            (Netlify drag-and-drop, Cloudflare Pages)
+
+3. Upload ONLY this file:
+     index.html
+
+   This single file contains ALL HTML, ALL CSS, ALL JavaScript, and the
+   favicon — everything is inlined. No styles/ folder needed. No
+   scripts/ folder needed.
+
+   DO NOT upload only index.html without the folders — there are no
+   folders to upload. The entire site is in index.html.
+
+4. After upload, verify in your browser:
+     https://fiveinstrumentsky.xyz/
+
+   You should see the full galaxy theme: dark background, gold title,
+   cyan buttons, five instrument tabs, and glass panels.
+
+5. If the site still looks unstyled, purge your CDN cache:
+     Cloudflare Dashboard -> Caching -> Configuration -> Purge Everything.
+   Then hard-refresh: Ctrl + Shift + R (Windows) or Cmd + Shift + R (Mac).
+
+6. If you still see problems, open DevTools (F12), go to the Network
+   tab, reload, and look for any red 404 errors. Send those to the
+   developer.
