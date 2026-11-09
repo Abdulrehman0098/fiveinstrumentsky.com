@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="galaxy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#02040a">
+<meta name="color-scheme" content="dark">
+<title>How a Star Finder Works: Coordinates, Charts and Applications | Field Instruments</title>
+<meta name="description" content="A complete guide to the Field Instruments Star Finder: celestial coordinates, the attitude transform, reading the sky chart and planning real observations.">
+<link rel="canonical" href="https://fiveinstrumentsky.xyz/articles/index.html#stars">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Field Instruments">
+<meta property="og:title" content="How a Star Finder Works: Coordinates, Charts and Applications">
+<meta property="og:description" content="A complete guide to celestial coordinates, the attitude transform, reading the sky chart and planning real observations.">
+<meta property="og:url" content="https://fiveinstrumentsky.xyz/articles/index.html#stars">
+<meta property="og:locale" content="en_US">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/assets/css/premium.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How a Star Finder Works: Coordinates, Charts and Applications",
+  "description": "A complete guide to celestial coordinates, the attitude transform, reading the sky chart and planning real observations.",
+  "url": "https://fiveinstrumentsky.xyz/articles/index.html#stars",
+  "inLanguage": "en-US",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Organization", "name": "Field Instruments" },
+  "publisher": { "@type": "Organization", "name": "Field Instruments" }
+}
+</script>
+</head>
+<body class="doc-page">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="page-header">
+  <a href="/" class="page-brand" aria-label="Field Instruments home">
+    <svg class="page-brand-mark" viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+      <circle cx="16" cy="16" r="14" fill="none" stroke="#ffd700" stroke-width="1.5"/>
+      <circle cx="16" cy="16" r="1.5" fill="#00f0ff"/>
+      <line x1="16" y1="2" x2="16" y2="30" stroke="#ffd700" stroke-width="0.8"/>
+      <line x1="2" y1="16" x2="30" y2="16" stroke="#ffd700" stroke-width="0.8"/>
+    </svg>
+    <span class="page-brand-text"><strong>FIELD INSTRUMENTS</strong><span>Precision tools, zero uploads</span></span>
+  </a>
+  <nav class="page-nav" aria-label="Primary">
+    <a href="/">Instruments</a>
+    <a href="/knowledge-base.html">Knowledge Base</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+  </nav>
+</header>
+<main id="main" class="page-main">
+  <div class="page-hero">
+    <p class="eyebrow">Field Instruments Guide</p>
+    <h1>How a Star Finder Works: Coordinates, Charts and Applications</h1>
+    <p class="lede">A practical explanation of celestial coordinates, the observation transform, and how to read the live sky output without a telescope.</p>
+  </div>
+  <div class="content-grid">
+    <aside class="doc-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ul>
+        <li><a href="#celestial-coordinates">Celestial coordinates</a></li>
+        <li><a href="#observation-transform">The observation transform</a></li>
+        <li><a href="#operating">Operating the star finder</a></li>
+        <li><a href="#reading-charts">Reading the charts</a></li>
+        <li><a href="#applications">Practical applications</a></li>
+        <li><a href="#limitations">Limitations and accuracy</a></li>
+      </ul>
+    </aside>
+    <article class="doc-article">
+
+      <p>Long before smartphones, navigators and astronomers described the sky with two numbers. A star was not simply "up there"; it had a precise address on an imaginary celestial sphere, and that address could be written down, shared and predicted. The Field Instruments Star Finder is a browser-based implementation of that same idea. It takes a catalogue of stars, converts the catalogue coordinates into the observer's local horizon, and draws the result as a live dome. Understanding the tool means understanding the three layers it joins together: the catalogue, the transform, and the display.</p>
+      <p>This guide explains each layer in plain language. It is written for students, hobbyist astronomers and anyone who wants to know why the numbers on the screen change as the device moves. No mathematical background is assumed, but the concepts are presented with enough precision to be genuinely useful.</p>
+
+      <h2 id="celestial-coordinates">Celestial coordinates: the foundation</h2>
+      <p>The starting point is a coordinate system fixed to the celestial sphere rather than to the ground. Two angles locate every object: right ascension and declination. Together they form an address that does not depend on where the observer stands, which is exactly what a catalogue needs.</p>
+      <h3>Right ascension</h3>
+      <p>Right ascension is the celestial equivalent of longitude. It is measured in hours, minutes and seconds, running from zero to twenty-four hours eastward around the celestial equator. The zero point is the vernal equinox, the position the Sun occupies at the March equinox. Because the value is an angle expressed in time units, one hour of right ascension equals fifteen degrees. This convention is a legacy of the way astronomers historically tracked the sky using the rotation of the Earth, which turns through twenty-four hours of right ascension in one sidereal day.</p>
+      <h3>Declination</h3>
+      <p>Declination is the celestial equivalent of latitude, measured in degrees from minus ninety at the south celestial pole to plus ninety at the north celestial pole. A declination of zero lies on the celestial equator. Stars with high positive declination circle close to the north celestial pole and never set for observers at suitable northern latitudes, which is why the pole star is such a useful reference.</p>
+      <p>The catalogue behind the tool stores both values for each star, along with identifiers, magnitude and constellation membership. When you search for a name, you are really retrieving this stored address before the transform converts it into something you can point at.</p>
+
+      <h2 id="observation-transform">The observation transform</h2>
+      <p>A catalogue address is observer-independent, but a human standing in a field needs observer-dependent directions. The transform bridges the two using three inputs: the observer's latitude and longitude, the local sidereal time, and the orientation of the device.</p>
+      <p>Latitude and longitude place the observer on the Earth. Local sidereal time is the rotating clock that tells the observer which part of the celestial sphere is currently crossing the meridian. Together these define the local frame in which altitude and azimuth are measured. Altitude is the angle above the horizon, running from zero at the horizon to ninety at the zenith. Azimuth is the compass direction, usually measured clockwise from north, so that east is ninety degrees, south is one hundred eighty and west is two hundred seventy.</p>
+      <p>The device orientation comes from the magnetometer and the gyroscope. The magnetometer supplies a heading reference tied to the Earth's magnetic field, while the gyroscope measures rotation. Combining them lets the tool estimate how the phone is tilted and pointed, and therefore where its back or screen is aimed. The clock supplies the time needed for sidereal conversion. Every one of these inputs is read locally in the browser; nothing is uploaded.</p>
+      <p>The result is a continuously updating mapping between catalogue coordinates and the direction the device faces. That is why the sky canvas can move in real time as you sweep the phone across the sky, and why the same star appears in a different place when you change location or wait several hours.</p>
+
+      <h2 id="operating">Operating the star finder</h2>
+      <p>Begin by granting location and motion permission when the browser asks. Location is required for the transform; motion is required for live attitude. If either permission is denied, the interface still loads but its live behaviour is limited, and the status layer will say so.</p>
+      <p>Use the search field to lookup a star by common name, Bayer designation or catalogue identifier. The search filters by magnitude and constellation, which keeps the results manageable in a crowded region of sky. Selecting a result centres the view on that object and exposes its numeric coordinates in the readouts.</p>
+      <p>The time scrubber allows you to replay any moment within a twenty-four-hour window. Dragging it forward is equivalent to letting the sky rotate, which is an excellent way to see how altitude and azimuth evolve without waiting all night. Manual mode lets you explore specific coordinates directly, and the constellation overlay and grid are display aids that do not change the underlying mathematics.</p>
+      <p>Demo mode deserves a note. When motion sensors are unavailable, for example on a desktop browser without a motion source, demo mode substitutes simulated attitude data so that the interface remains teachable. Treat demo output as a demonstration of behaviour, not as a measurement of the real sky.</p>
+
+      <h2 id="reading-charts">Reading the charts and readouts</h2>
+      <p>The dome projection plots altitude against azimuth for the visible hemisphere. The centre represents the zenith, the rim represents the horizon, and the angular distance from the centre is altitude. Some users find it helpful to imagine standing under a transparent bowl and looking up; the chart is the flattened version of that bowl.</p>
+      <p>The numeric readouts are the authoritative layer. They report the object's right ascension and declination from the catalogue and the derived altitude and azimuth for your current position and time. When the camera or sensor view and the chart disagree, trust the numbers first and treat the discrepancy as a clue about sensor calibration or magnetic interference.</p>
+      <p>The status layer tells you whether the attitude source is live, simulated or denied. This matters because a frozen orientation can look convincing on screen. If the status says demo, interpret movement as illustrative rather than physical. If the reading jumps erratically, suspect magnetic disturbance from nearby metal, speakers or a vehicle, since the magnetometer is sensitive to local fields.</p>
+
+      <h2 id="applications">Practical applications</h2>
+      <p>The clearest use is education. A classroom can demonstrate coordinate transforms, sidereal time and horizon limits with nothing more than a phone and a projector. Students can watch a star's altitude rise and set as the time scrubber moves, which makes an abstract geometry tangible.</p>
+      <p>Amateur astronomers use the tool to plan sessions and to sanity-check where a target will be before setting up a telescope. Knowing that an object has already passed the meridian, or that it barely clears the horizon, saves time in the field. Deep-sky photographers can compare the tool's altitude estimate with a planned exposure window.</p>
+      <p>Navigation and outdoor education also benefit. The relationship between declination and latitude, and between altazimuth coordinates and a real horizon, is the foundation of celestial navigation. The tool will not replace a sextant, but it makes the underlying reasoning visible.</p>
+
+      <h2 id="limitations">Limitations and accuracy</h2>
+      <p>Every value depends on the quality of three things: the catalogue, the location fix and the attitude estimate. Catalogue coordinates are accurate to a high standard, but the derived altitude and azimuth inherit sensor error. Magnetometer readings drift near magnetic material and may be affected by nearby electronics. Gyroscope integration accumulates small errors over time. Location accuracy depends on the browser and the device.</p>
+      <p>Atmospheric refraction, which lifts objects slightly near the horizon, is not modelled. The tool also ignores parallax, precession and proper motion, all of which matter for high-precision work but are irrelevant for teaching and planning. If you need arcsecond accuracy, use a calibrated equatorial mount and a proper star catalogue.</p>
+      <div class="callout warn"><strong>Educational use:</strong> This tool is for educational and experimental purposes. It is not a substitute for professional, factory-calibrated laboratory equipment.</div>
+      <p>Ready to try it? Open the <a href="/index.html#stars">Precision Star Finder</a>, or browse the full <a href="/knowledge-base.html">Knowledge Base</a> for guides to the sound meter, vibration analyzer, magnetic mapper and barometric altimeter.</p>
+    </article>
+  </div>
+</main>
+<footer class="page-footer">
+  <div class="page-footer-inner">
+    <div>
+      <h2>FIELD INSTRUMENTS</h2>
+      <p>Educational sensor tools that keep measurement inside your browser.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
+      <a href="/knowledge-base.html">Knowledge Base</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </nav>
+  </div>
+  <p class="copyright">&copy; 2026 Field Instruments. All rights reserved.</p>
+</footer>
+</body>
+</html>

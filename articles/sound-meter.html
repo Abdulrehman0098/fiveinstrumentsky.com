@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="galaxy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#02040a">
+<meta name="color-scheme" content="dark">
+<title>Understanding Decibels: A Guide to the Sound Level Meter | Field Instruments</title>
+<meta name="description" content="Learn how a browser sound level meter converts microphone pressure into decibels, how to read the waveform and spectrum charts, and how to judge noise exposure.">
+<link rel="canonical" href="https://fiveinstrumentsky.xyz/articles/sound-meter.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Field Instruments">
+<meta property="og:title" content="Understanding Decibels: A Guide to the Sound Level Meter">
+<meta property="og:description" content="Learn how a browser sound level meter converts microphone pressure into decibels and how to read the waveform and spectrum charts.">
+<meta property="og:url" content="https://fiveinstrumentsky.xyz/articles/sound-meter.html">
+<meta property="og:locale" content="en_US">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/assets/css/premium.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Understanding Decibels: A Guide to the Sound Level Meter",
+  "description": "Learn how a browser sound level meter converts microphone pressure into decibels and how to read the waveform and spectrum charts.",
+  "url": "https://fiveinstrumentsky.xyz/articles/sound-meter.html",
+  "inLanguage": "en-US",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Organization", "name": "Field Instruments" },
+  "publisher": { "@type": "Organization", "name": "Field Instruments" }
+}
+</script>
+</head>
+<body class="doc-page">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="page-header">
+  <a href="/" class="page-brand" aria-label="Field Instruments home">
+    <svg class="page-brand-mark" viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+      <circle cx="16" cy="16" r="14" fill="none" stroke="#ffd700" stroke-width="1.5"/>
+      <circle cx="16" cy="16" r="1.5" fill="#00f0ff"/>
+      <line x1="16" y1="2" x2="16" y2="30" stroke="#ffd700" stroke-width="0.8"/>
+      <line x1="2" y1="16" x2="30" y2="16" stroke="#ffd700" stroke-width="0.8"/>
+    </svg>
+    <span class="page-brand-text"><strong>FIELD INSTRUMENTS</strong><span>Precision tools, zero uploads</span></span>
+  </a>
+  <nav class="page-nav" aria-label="Primary">
+    <a href="/">Instruments</a>
+    <a href="/knowledge-base.html">Knowledge Base</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+  </nav>
+</header>
+<main id="main" class="page-main">
+  <div class="page-hero">
+    <p class="eyebrow">Field Instruments Guide</p>
+    <h1>Understanding Decibels: A Guide to the Sound Level Meter</h1>
+    <p class="lede">From air-pressure waves to a live decibel reading and a frequency spectrum, explained without the acoustics textbook.</p>
+  </div>
+  <div class="content-grid">
+    <aside class="doc-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ul>
+        <li><a href="#what-sound-is">What sound is</a></li>
+        <li><a href="#decibel-scale">The decibel scale</a></li>
+        <li><a href="#how-it-measures">How the meter measures</a></li>
+        <li><a href="#reading-charts-sound">Reading the charts</a></li>
+        <li><a href="#exposure">Judging noise exposure</a></li>
+        <li><a href="#applications-sound">Practical applications</a></li>
+        <li><a href="#limitations-sound">Limitations and accuracy</a></li>
+      </ul>
+    </aside>
+    <article class="doc-article">
+
+      <p>Noise is easy to experience and surprisingly hard to describe. "Loud" is subjective, yet a measurement must be objective, repeatable and comparable between places and days. The sound level meter solves that problem by turning rapid pressure fluctuations in the air into a number. The Field Instruments implementation does this entirely inside the browser using the device microphone, and it adds a frequency view so that you can see not only how loud a sound is but what it is made of.</p>
+      <p>This guide walks through the physics, the logarithmic scale that makes decibels confusing at first, the way the browser actually computes the values, and the practical questions the tool can and cannot answer.</p>
+
+      <h2 id="what-sound-is">What sound is</h2>
+      <p>Sound is a longitudinal pressure wave. A vibrating source, such as a speaker cone or a plucked string, pushes and pulls the surrounding air, creating regions of compression and rarefaction that travel outward. When those waves reach the microphone, they move a diaphragm, and the diaphragm's motion is converted into an electrical signal. The signal is a voltage that rises and falls in step with the pressure.</p>
+      <p>The microphone therefore measures pressure, not "loudness". The human ear also responds to pressure, but not linearly and not uniformly across frequency. That mismatch is the reason the decibel scale and frequency weighting exist. A faithful meter mimics the ear rather than simply reporting raw pressure.</p>
+      <p>The reference pressure for sound in air is twenty micropascals, roughly the smallest pressure variation a healthy young ear can detect. Every decibel value is a ratio against that reference, which is why the scale is relative even though the readings look absolute.</p>
+
+      <h2 id="decibel-scale">The decibel scale</h2>
+      <p>The decibel is a logarithmic unit. An increase of ten decibels corresponds to a tenfold increase in acoustic power and roughly a tenfold increase in intensity, not a ten percent increase. This compression is essential because the range of audible pressures spans many orders of magnitude; a linear scale would be unusable.</p>
+      <p>As a rule of thumb, a change of three decibels is a doubling of acoustic power and is just noticeable to many listeners. A change of ten decibels is perceived as roughly twice as loud. Quiet room tone might sit near thirty decibels, ordinary conversation near sixty, a busy restaurant near eighty, and a loud concert well above one hundred. These are approximate anchors, not precise thresholds.</p>
+      <h3>Weighting and averaging</h3>
+      <p>Because the ear is less sensitive to very low and very high frequencies, meters apply weighting filters. A-weighting de-emphasises low frequencies and approximates the ear's response at moderate levels; C-weighting is flatter and better suited to peak or low-frequency assessment. The tool exposes these options so that readings can be compared with published guidance.</p>
+      <p>Averaging matters as much as weighting. Root-mean-square averaging captures the energy over a window, while peak measurement captures the largest instantaneous excursion. A brief hand clap and a sustained engine hum can share a peak value while differing enormously in exposure.</p>
+
+      <h2 id="how-it-measures">How the meter measures</h2>
+      <p>When you start the measurement, the browser requests microphone access. Once granted, the audio stream is sampled at the device's supported rate, typically forty-four or forty-eight thousand samples per second. Each sample carries the instantaneous pressure, and the software computes the root-mean-square level over a sliding window.</p>
+      <p>Converting the RMS amplitude to decibels is a logarithmic operation against the reference pressure. The result is the live level you see. In parallel, the tool runs a fast Fourier transform on a window of samples to produce the frequency spectrum. The transform decomposes the signal into sinusoidal components, each with its own magnitude, which is what the spectrum chart displays.</p>
+      <p>Everything is computed in memory on your device. The audio is not recorded to disk, not uploaded, and not retained after the session ends. That design keeps the privacy boundary at the microphone.</p>
+
+      <h2 id="reading-charts-sound">Reading the charts</h2>
+      <p>The waveform chart plots amplitude against time. A steady tone produces a regular oscillation, an impulsive sound produces a sharp spike followed by decay, and broadband noise produces a dense, irregular trace. The waveform is the most direct view of what the microphone is receiving.</p>
+      <p>The spectrum chart plots magnitude against frequency, usually on a logarithmic frequency axis. A pure tone appears as a narrow peak at one frequency. Harmonics appear as a family of peaks at integer multiples of the fundamental. Broad humps indicate noise that spans a range of frequencies, such as ventilation or traffic. Reading the spectrum tells you what to change if you are trying to reduce noise, because it separates the low rumble from the high hiss.</p>
+      <p>The history chart keeps a rolling record of the level, which is far more useful than a single instantaneous number. Speech, machinery and music all fluctuate; a history view shows whether a reading is steady, intermittent or dominated by occasional peaks.</p>
+
+      <h2 id="exposure">Judging noise exposure</h2>
+      <p>Hearing risk depends on both level and duration. A very loud sound for a short time and a moderately loud sound for a long time can both be hazardous. This is why the tool pairs the live level with a safety indicator and a duration-aware interpretation. The indicator is an educational heuristic, not a medical or regulatory determination.</p>
+      <p>As a general principle, prolonged exposure above eighty-five decibels is widely treated as the point at which protection and monitoring become important in occupational settings, and impulsive peaks above roughly one hundred forty decibels carry acute risk. Use these figures as orientation only. Real workplace assessments follow standards, calibrated instruments and trained procedures.</p>
+      <p>Practical habits matter: move away from the source, reduce the duration, and use hearing protection when you cannot do either. The meter helps you notice that a room is louder than it feels, which is often the most valuable insight it can provide.</p>
+
+      <h2 id="applications-sound">Practical applications</h2>
+      <p>Workplace noise is the classic use case. A short survey can show whether a workshop, kitchen or machine room warrants a formal assessment. Environmental acoustics is another: comparing a quiet street at night with the same street at rush hour makes the effect of traffic obvious.</p>
+      <p>Musicians and audio engineers use the meter and spectrum together to check monitoring levels and to find problematic resonances in a room. Teachers and parents use it to gauge classroom or play-area loudness. Field recordists use it to choose microphone gain and to document conditions. In every case the tool provides context, not certification.</p>
+
+      <h2 id="limitations-sound">Limitations and accuracy</h2>
+      <p>A phone microphone is not a laboratory measurement microphone. Its frequency response is designed for speech, its sensitivity varies between models, and the browser applies its own audio processing that may include automatic gain control, noise suppression or clipping behaviour. Absolute readings can therefore be off by several decibels, and comparisons are most reliable when made with the same device in the same configuration.</p>
+      <p>Placement changes everything. Wind across the microphone, nearby reflective surfaces, the phone case and even the grip of your hand can alter the result. Hold the device consistently, avoid covering the microphone, and compare measurements made under similar conditions. For anything that requires legal or safety compliance, use a calibrated sound level meter and follow the relevant standard.</p>
+      <div class="callout warn"><strong>Educational use:</strong> This tool is for educational and experimental purposes. It is not a substitute for professional, factory-calibrated laboratory equipment.</div>
+      <p>Open the <a href="/index.html#sound">Precision Sound Level Meter</a> to try these ideas, or return to the <a href="/knowledge-base.html">Knowledge Base</a> for the other instrument guides.</p>
+    </article>
+  </div>
+</main>
+<footer class="page-footer">
+  <div class="page-footer-inner">
+    <div>
+      <h2>FIELD INSTRUMENTS</h2>
+      <p>Educational sensor tools that keep measurement inside your browser.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
+      <a href="/knowledge-base.html">Knowledge Base</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </nav>
+  </div>
+  <p class="copyright">&copy; 2026 Field Instruments. All rights reserved.</p>
+</footer>
+</body>
+</html>

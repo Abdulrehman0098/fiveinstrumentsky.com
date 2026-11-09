@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="galaxy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#02040a">
+<meta name="color-scheme" content="dark">
+<title>Barometric Altitude: A Guide to the Barometric Altimeter | Field Instruments</title>
+<meta name="description" content="Learn how barometric altitude is derived from air pressure, how to read the altitude and pressure history charts, and when to trust baro versus GPS.">
+<link rel="canonical" href="https://fiveinstrumentsky.xyz/articles/altimeter.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Field Instruments">
+<meta property="og:title" content="Barometric Altitude: A Guide to the Barometric Altimeter">
+<meta property="og:description" content="Learn how barometric altitude is derived from air pressure and how to read the altitude and pressure history charts.">
+<meta property="og:url" content="https://fiveinstrumentsky.xyz/articles/altimeter.html">
+<meta property="og:locale" content="en_US">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/assets/css/premium.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Barometric Altitude: A Guide to the Barometric Altimeter",
+  "description": "Learn how barometric altitude is derived from air pressure and how to read the altitude and pressure history charts.",
+  "url": "https://fiveinstrumentsky.xyz/articles/altimeter.html",
+  "inLanguage": "en-US",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Organization", "name": "Field Instruments" },
+  "publisher": { "@type": "Organization", "name": "Field Instruments" }
+}
+</script>
+</head>
+<body class="doc-page">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="page-header">
+  <a href="/" class="page-brand" aria-label="Field Instruments home">
+    <svg class="page-brand-mark" viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+      <circle cx="16" cy="16" r="14" fill="none" stroke="#ffd700" stroke-width="1.5"/>
+      <circle cx="16" cy="16" r="1.5" fill="#00f0ff"/>
+      <line x1="16" y1="2" x2="16" y2="30" stroke="#ffd700" stroke-width="0.8"/>
+      <line x1="2" y1="16" x2="30" y2="16" stroke="#ffd700" stroke-width="0.8"/>
+    </svg>
+    <span class="page-brand-text"><strong>FIELD INSTRUMENTS</strong><span>Precision tools, zero uploads</span></span>
+  </a>
+  <nav class="page-nav" aria-label="Primary">
+    <a href="/">Instruments</a>
+    <a href="/knowledge-base.html">Knowledge Base</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+  </nav>
+</header>
+<main id="main" class="page-main">
+  <div class="page-hero">
+    <p class="eyebrow">Field Instruments Guide</p>
+    <h1>Barometric Altitude: A Guide to the Barometric Altimeter</h1>
+    <p class="lede">How pressure becomes height, why weather confuses the reading, and how to compare barometric and GPS altitude honestly.</p>
+  </div>
+  <div class="content-grid">
+    <aside class="doc-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ul>
+        <li><a href="#atmosphere">The atmosphere and pressure</a></li>
+        <li><a href="#baro-model">The barometric model</a></li>
+        <li><a href="#how-it-measures-alt">How the altimeter measures</a></li>
+        <li><a href="#reading-charts-alt">Reading the charts</a></li>
+        <li><a href="#gps-compare">Baro versus GPS</a></li>
+        <li><a href="#applications-alt">Practical applications</a></li>
+        <li><a href="#limitations-alt">Limitations and accuracy</a></li>
+      </ul>
+    </aside>
+    <article class="doc-article">
+
+      <p>Height is surprisingly difficult to measure. You can count stairs, use a tape measure, or ask a satellite, but none of those is convenient for a hiker on a ridge or a pilot in a cockpit. The barometric altimeter solves the problem indirectly: it measures air pressure and converts pressure into height using a model of the atmosphere. The Field Instruments version runs entirely in the browser, compares the barometric estimate with GPS altitude, and keeps a history so that you can see both short-term motion and slower pressure-driven drift.</p>
+      <p>This guide explains why pressure falls with altitude, how the conversion is made, what the charts show, and why a barometric altitude can be wrong by hundreds of metres even when the sensor is working perfectly.</p>
+
+      <h2 id="atmosphere">The atmosphere and pressure</h2>
+      <p>Air has weight. The column of air above a point presses down under its own mass, and that pressure is what a barometer measures. At sea level, standard atmospheric pressure is 1013.25 hectopascals, which is roughly one kilogram per square centimetre. As you climb, the column above you is shorter, so the pressure falls. The relationship is not linear, but it is predictable enough to be used for height estimation.</p>
+      <p>Pressure also changes with weather. A high-pressure system raises the baseline; a low-pressure system lowers it. This is the central complication of barometric altimetry: the sensor cannot tell whether the pressure changed because you climbed or because the weather changed. Both produce the same signal, and separating them is the main skill in using the tool.</p>
+      <p>Temperature matters too. Warm air is less dense than cold air, so the pressure-height relationship shifts with temperature. The standard atmosphere assumes a particular temperature profile, called the lapse rate, and real days deviate from it. A hot afternoon and a cold morning at the same altitude will read different pressures.</p>
+
+      <h2 id="baro-model">The barometric model</h2>
+      <p>The tool converts pressure to altitude using the international standard atmosphere. The model assumes a known sea-level pressure, a standard temperature at sea level, and a constant lapse rate in the troposphere. Given a measured pressure, it inverts the model to estimate the height at which that pressure would occur under standard conditions.</p>
+      <p>Because the sea-level pressure is an assumption, the user can set it manually. If you know the local sea-level pressure from a weather station or an airport, entering it removes the largest source of error. If you leave it at the default, the tool assumes standard conditions, which is fine for learning and for comparing changes over a short session.</p>
+      <p>The result is an instantaneous altitude estimate. It is not a measurement of height in the strict sense; it is an inference from a pressure reading through a model. That distinction is important whenever you compare it with another method, such as GPS.</p>
+
+      <h2 id="how-it-measures-alt">How the altimeter measures</h2>
+      <p>When you start the measurement, the browser requests access to the barometric sensor if the device exposes one. Many phones include a barometer for altitude-aware features, and the reading is sampled at intervals in the browser. Each sample is converted to an altitude estimate and added to the history.</p>
+      <p>GPS altitude is obtained separately, if location permission is granted, by trilateration against satellites. The tool displays both values and their difference. The vertical speed is derived from successive altitude estimates, and the trend is computed over a window so that brief sensor noise does not dominate.</p>
+      <p>Everything is processed locally. Pressure samples and derived altitudes are kept in memory for the session and are not transmitted to a server.</p>
+
+      <h2 id="reading-charts-alt">Reading the charts</h2>
+      <p>The altitude history chart plots estimated height against time over a rolling window, typically the last several minutes. It is the most useful view for understanding what the tool is doing. A steady climb produces a smooth rising line; a stationary person in changing weather produces a slow drift that can be mistaken for climbing.</p>
+      <p>The pressure trend chart tracks the raw pressure rather than the derived altitude. Comparing the two is instructive, because pressure and altitude move in opposite directions. When you see the altitude rise while the pressure chart also rises, you know that the model is being driven by a weather change rather than by your movement.</p>
+      <p>The trend arrows and vertical speed summarise recent motion. A positive vertical speed means you are gaining height according to the sensor; a negative value means you are descending. The GPS-baro difference exposes drift: a growing gap between the two methods indicates that one of them is being biased by conditions.</p>
+      <p>Sea-level pressure and temperature should be read together. If the sea-level pressure you entered no longer matches the actual weather, the absolute altitude will be offset even if the relative changes are correct.</p>
+
+      <h2 id="gps-compare">Baro versus GPS</h2>
+      <p>The two methods measure different things. Barometric altitude is smooth and responsive, updating many times per second, but it is biased by weather and by the assumed sea-level pressure. GPS altitude is absolute in principle, tied to a mathematical ellipsoid, but it is noisier, updates less frequently, and can be badly degraded by poor satellite geometry, multipath reflection and indoor conditions.</p>
+      <p>In practice, barometric altitude is better for tracking short-term changes such as steps and staircases, while GPS is better for establishing an absolute height above sea level. Hikers often combine them: use baro for the climb and GPS to correct the baseline at known points. The tool's comparison view is designed to make that relationship visible.</p>
+      <p>Neither method measures height above the ground directly. Both are estimates with different error structures, and the honest reading is to treat the gap between them as a measure of uncertainty.</p>
+
+      <h2 id="applications-alt">Practical applications</h2>
+      <p>Outdoor recreation is the obvious use. Hikers and cyclists can see how much height they have gained, monitor descent rates, and understand why a trail feels steeper than the map suggests. Aviation uses barometric altitude as the primary height reference, though with far more rigorous procedures and calibration than a phone can provide.</p>
+      <p>Meteorology and environmental science use pressure to infer altitude and to track weather systems. A fixed barometer at a known height is a weather instrument; a moving one is an altimeter. Surveyors use it for preliminary height estimates and for checking consistency between points.</p>
+      <p>Education benefits from the immediacy. Watching the altitude change as you walk up a staircase, and watching it drift as a weather front passes, makes the abstract relationship between pressure and height concrete. The comparison with GPS reinforces the idea that measurement is always an inference.</p>
+
+      <h2 id="limitations-alt">Limitations and accuracy</h2>
+      <p>Accuracy depends on the weather, the sea-level pressure assumption, the temperature profile and the sensor itself. A barometer that is not calibrated, or a device whose pressure sensor has a large offset, can be off by tens of hectopascals, which translates to hundreds of metres of altitude. Entering a known sea-level pressure reduces this, but only if that value is current.</p>
+      <p>Rapid weather changes can mimic altitude changes of several hundred metres in an hour. Indoor use is unreliable because ventilation and air conditioning create pressure gradients unrelated to height. Near large buildings, pressure can be perturbed by wind and HVAC systems. The sensor is also affected by temperature and by whether the device is in a pocket or exposed.</p>
+      <p>For any application that involves safety, navigation or legal height, use a calibrated altimeter and follow the relevant procedures. The tool is an educational demonstration of how pressure-based height estimation works, not a certified instrument.</p>
+      <div class="callout warn"><strong>Educational use:</strong> This tool is for educational and experimental purposes. It is not a substitute for professional, factory-calibrated laboratory equipment.</div>
+      <p>Try the <a href="/index.html#altimeter">Precision Barometric Altimeter</a>, or return to the <a href="/knowledge-base.html">Knowledge Base</a> for the other instrument guides.</p>
+    </article>
+  </div>
+</main>
+<footer class="page-footer">
+  <div class="page-footer-inner">
+    <div>
+      <h2>FIELD INSTRUMENTS</h2>
+      <p>Educational sensor tools that keep measurement inside your browser.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
+      <a href="/knowledge-base.html">Knowledge Base</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </nav>
+  </div>
+  <p class="copyright">&copy; 2026 Field Instruments. All rights reserved.</p>
+</footer>
+</body>
+</html>

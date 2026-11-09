@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="galaxy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#02040a">
+<meta name="color-scheme" content="dark">
+<title>Reading Vibration Data: A Guide to Accelerometers and FFT | Field Instruments</title>
+<meta name="description" content="Understand acceleration, RMS, peak and FFT spectra, and learn how to read the Field Instruments Vibration Analyzer charts for machinery and structural insight.">
+<link rel="canonical" href="https://fiveinstrumentsky.xyz/articles/vibration.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Field Instruments">
+<meta property="og:title" content="Reading Vibration Data: A Guide to Accelerometers and FFT">
+<meta property="og:description" content="Understand acceleration, RMS, peak and FFT spectra, and learn how to read vibration charts.">
+<meta property="og:url" content="https://fiveinstrumentsky.xyz/articles/vibration.html">
+<meta property="og:locale" content="en_US">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/assets/css/premium.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Reading Vibration Data: A Guide to Accelerometers and FFT",
+  "description": "Understand acceleration, RMS, peak and FFT spectra, and learn how to read vibration charts.",
+  "url": "https://fiveinstrumentsky.xyz/articles/vibration.html",
+  "inLanguage": "en-US",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Organization", "name": "Field Instruments" },
+  "publisher": { "@type": "Organization", "name": "Field Instruments" }
+}
+</script>
+</head>
+<body class="doc-page">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="page-header">
+  <a href="/" class="page-brand" aria-label="Field Instruments home">
+    <svg class="page-brand-mark" viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+      <circle cx="16" cy="16" r="14" fill="none" stroke="#ffd700" stroke-width="1.5"/>
+      <circle cx="16" cy="16" r="1.5" fill="#00f0ff"/>
+      <line x1="16" y1="2" x2="16" y2="30" stroke="#ffd700" stroke-width="0.8"/>
+      <line x1="2" y1="16" x2="30" y2="16" stroke="#ffd700" stroke-width="0.8"/>
+    </svg>
+    <span class="page-brand-text"><strong>FIELD INSTRUMENTS</strong><span>Precision tools, zero uploads</span></span>
+  </a>
+  <nav class="page-nav" aria-label="Primary">
+    <a href="/">Instruments</a>
+    <a href="/knowledge-base.html">Knowledge Base</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+  </nav>
+</header>
+<main id="main" class="page-main">
+  <div class="page-hero">
+    <p class="eyebrow">Field Instruments Guide</p>
+    <h1>Reading Vibration Data: A Guide to Accelerometers and FFT</h1>
+    <p class="lede">Why acceleration is the starting point, what the axes and spectra mean, and how to interpret changing vibration in the real world.</p>
+  </div>
+  <div class="content-grid">
+    <aside class="doc-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ul>
+        <li><a href="#acceleration">Acceleration and sensors</a></li>
+        <li><a href="#time-domain">Time-domain metrics</a></li>
+        <li><a href="#frequency-domain">Frequency domain and FFT</a></li>
+        <li><a href="#reading-charts-vib">Reading the charts</a></li>
+        <li><a href="#applications-vib">Practical applications</a></li>
+        <li><a href="#limitations-vib">Limitations and accuracy</a></li>
+      </ul>
+    </aside>
+    <article class="doc-article">
+
+      <p>Vibration is motion that repeats or fluctuates around a reference position. It is the visible symptom of many hidden problems, from an unbalanced fan to a loose bolt to a structural resonance, and it is also a designed feature of engines, speakers and shakers. Measuring it well requires a sensor that responds to acceleration, a set of metrics that summarise the motion, and a frequency view that reveals where the energy sits.</p>
+      <p>The Field Instruments Vibration Analyzer uses the accelerometer built into most phones and laptops to produce three-axis acceleration, severity metrics and a live spectrum. This guide explains what those numbers mean and how to interpret them without over-claiming precision.</p>
+
+      <h2 id="acceleration">Acceleration and the accelerometer</h2>
+      <p>Acceleration is the rate of change of velocity, expressed in metres per second squared. One g is the acceleration due to gravity at the Earth's surface, roughly 9.81 metres per second squared. A phone lying flat on a table reports about one g along the axis pointing up, because the accelerometer measures proper acceleration, which includes the reaction to gravity.</p>
+      <p>Inside the device, a microelectromechanical accelerometer senses the displacement of a tiny proof mass. When the device accelerates, the mass lags behind, and the displacement is converted into an electrical signal. Three orthogonal sensing directions give the three axes, so the tool can report acceleration along x, y and z simultaneously.</p>
+      <p>Because the accelerometer includes gravity, a stationary device shows a constant offset rather than zero. Many analyses remove this offset, often by subtracting a long-term average, so that the metrics describe motion rather than orientation. The tool provides both the raw three-axis values and derived severity figures so that you can see the relationship.</p>
+
+      <h2 id="time-domain">Time-domain metrics</h2>
+      <p>The simplest view is the waveform: acceleration against time for each axis. From the waveform, several summary metrics are computed. Root-mean-square, or RMS, is the average magnitude of the signal and is the best single number for continuous vibration. Peak is the largest instantaneous excursion and is useful for detecting shocks and impacts. Crest factor, the ratio of peak to RMS, indicates how impulsive a signal is; a smooth sinusoid has a crest factor near 1.4, while a sharp impact produces a much higher value.</p>
+      <p>These metrics answer different questions. RMS tells you how much energy is present over a window. Peak tells you the worst-case excursion. Crest factor tells you whether the energy is spread evenly or concentrated into brief events. A bearing with a developing defect often shows a rising crest factor before its overall RMS changes much, which is why looking at more than one metric matters.</p>
+
+      <h2 id="frequency-domain">Frequency domain and FFT</h2>
+      <p>A waveform contains the full signal, but it hides which frequencies contribute. The fast Fourier transform converts a block of time samples into a spectrum of magnitudes at discrete frequencies. This is the single most useful transformation in vibration analysis because different physical causes produce different frequency signatures.</p>
+      <p>Rotation produces peaks at the rotation frequency and its harmonics. An imbalance typically strengthens the fundamental. Misalignment often elevates the second harmonic. Looseness can produce a forest of harmonics and sidebands. Resonance appears as an amplified band at a natural frequency, and bearing defects generate characteristic high-frequency patterns. Knowing these signatures turns a confusing wiggle into a diagnostic clue.</p>
+      <p>The transform is constrained by the sampling rate and the number of samples. The highest frequency that can be represented is half the sampling rate, known as the Nyquist frequency. If the true signal contains higher frequencies that are not filtered out, they fold back into the spectrum as aliasing and appear at false frequencies. The tool's fixed sampling and windowing choices set these limits, and it reports them indirectly through the spectrum range.</p>
+      <p>Frequency resolution depends on the observation window length. A longer window resolves closer frequencies, while a shorter window responds faster to change. Practical analysis balances the two, and the tool's live display favours responsiveness for educational interaction.</p>
+
+      <h2 id="reading-charts-vib">Reading the charts</h2>
+      <p>The three-axis waveform shows how acceleration evolves over time. Compare the axes to see which direction dominates; for a machine on a floor, vertical and horizontal components often behave very differently. Sharp spikes indicate impacts, while smooth periodic shapes indicate steady rotation or oscillation.</p>
+      <p>The FFT chart plots magnitude against frequency. Read it left to right for increasing frequency, and look for distinct peaks, harmonic families and broad bands. A single dominant peak suggests a periodic source. A family of evenly spaced peaks suggests harmonics of one fundamental. A broad hump suggests random or broadband excitation, such as turbulence or friction.</p>
+      <p>The events view records threshold crossings and notable changes so that you can correlate a spike with something you did, such as tapping the table or starting a motor. This correlation is often more informative than the absolute level, because it links cause to effect.</p>
+
+      <h2 id="applications-vib">Practical applications</h2>
+      <p>Machinery health monitoring is the classic application. A baseline spectrum taken when a machine is known to be healthy becomes a reference; changes over time, especially new peaks or rising harmonics, justify inspection. Condition monitoring programmes formalise this idea with calibrated sensors and trend databases.</p>
+      <p>Structural monitoring uses vibration to detect resonance, floor vibration and the effect of nearby construction. Vehicle and bicycle diagnostics use it to find imbalance and suspension problems. Sports and fitness applications use accelerometers to measure movement and impact. Occupational hygiene uses vibration exposure limits for hand-arm and whole-body vibration, though those assessments require dedicated instruments.</p>
+
+      <h2 id="limitations-vib">Limitations and accuracy</h2>
+      <p>A phone accelerometer is a consumer sensor. Its noise floor, bandwidth and calibration are adequate for education and rough trend spotting but not for certified machinery diagnosis. Mounting is critical: a sensor held loosely in the hand filters and distorts high frequencies, while a rigidly coupled sensor transmits them faithfully. Sensitivity settings must be applied consistently, and the sample rate must be high enough for the phenomenon of interest.</p>
+      <p>Gravity, temperature and device orientation all influence readings. Remove the static offset before comparing axes, and avoid concluding that a single measurement proves a fault. Trends over time and comparisons against a baseline are far more trustworthy than absolute values.</p>
+      <div class="callout warn"><strong>Educational use:</strong> This tool is for educational and experimental purposes. It is not a substitute for professional, factory-calibrated laboratory equipment.</div>
+      <p>Try the <a href="/index.html#vibration">Precision Vibration Analyzer</a>, or continue with the <a href="/knowledge-base.html">Knowledge Base</a> to read about sound, magnetism and altitude.</p>
+    </article>
+  </div>
+</main>
+<footer class="page-footer">
+  <div class="page-footer-inner">
+    <div>
+      <h2>FIELD INSTRUMENTS</h2>
+      <p>Educational sensor tools that keep measurement inside your browser.</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="/about.html">About</a>
+      <a href="/contact.html">Contact</a>
+      <a href="/knowledge-base.html">Knowledge Base</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </nav>
+  </div>
+  <p class="copyright">&copy; 2026 Field Instruments. All rights reserved.</p>
+</footer>
+</body>
+</html>
