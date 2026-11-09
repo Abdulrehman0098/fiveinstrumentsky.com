@@ -60,19 +60,25 @@
     <aside class="doc-toc" aria-label="On this page">
       <h2>On this page</h2>
       <ul>
-        <li><a href="#alt-principle">Scientific principle</a></li>
-        <li><a href="#alt-charts">Reading the live charts</a></li>
+        <li><a href="#alt-scientific-background">Scientific background</a></li>
+        <li><a href="#alt-how-to-use">How to use</a></li>
+        <li><a href="#alt-interpreting">Interpreting live data</a></li>
         <li><a href="#alt-applications">Practical applications</a></li>
         <li><a href="#alt-disclaimer">Accuracy and disclaimer</a></li>
       </ul>
     </aside>
-    <article class="doc-article" id="alt-principle">
-      <h2>Scientific principle</h2>
-      <h3>Reading the live charts</h3>
-      <p>Barometric altitude follows the international pressure model: pressure falls with height at a known rate, so the device converts pressure into an estimated height using an assumed sea-level pressure, by default 1013.25 hPa, with temperature corrections applied.</p>
-      <h3>Practical applications</h3>
-      <p>Hikers use it for route planning, meteorologists for altitude-aware weather tracking, aviation for situational awareness and surveyors for preliminary height estimates.</p>
-      <h3 id="alt-disclaimer">Accuracy and disclaimer</h3>
+    <article class="doc-article" id="alt-scientific-background">
+      <h2>The science behind the measurement</h2>
+      <p>Barometric altitude is derived from the international pressure atmosphere model, in which pressure decreases with height at a known rate. The instrument converts measured pressure into an estimated height using an assumed sea-level pressure, by default 1013.25 hectopascals, and applies temperature corrections for the day lapse rate.</p>
+      <p>The result is a continuously updated altitude estimate that responds to weather changes. Because pressure systems move, altitude can change quickly, and the trend view separates short-term motion from slower pressure-driven drift.</p>
+      <p>GPS altitude is produced by trilateration and is subject to multipath and poor satellite geometry. Comparing the two measurements provides a consistency check and exposes barometric bias.</p>
+      <h2 id="alt-how-to-use">How to use the Barometric Altimeter</h2>
+      <p>Set a manual sea-level pressure when GPS is unavailable, start the measurement, and watch the altitude history. Use the CSV export to record sessions, and use the zero set or reset controls to manage reference points.</p>
+      <h2 id="alt-interpreting">Interpreting live data</h2>
+      <p>The altitude history chart shows height over the last ten minutes while the pressure trend chart tracks changes. Trend arrows and vertical speed interpret motion, and the GPS-baro difference reveals drift. Read the sea-level pressure and temperature together for the most defensible estimate.</p>
+      <h2 id="alt-applications">Practical applications</h2>
+      <p>Hikers use it for route planning, meteorologists for altitude-aware weather tracking, aviation for situational awareness and surveyors for preliminary height estimates. Each application depends on the same pressure-to-height chain.</p>
+      <h2 id="alt-disclaimer">Accuracy and disclaimer</h2>
       <p>This tool is for educational purposes and should not replace professional calibration equipment. Manual sea-level pressure and environmental corrections affect accuracy.</p>
       <div class="callout warn"><strong>Educational use:</strong> This tool is for educational purposes and should not replace professional calibration equipment.</div>
     </article>

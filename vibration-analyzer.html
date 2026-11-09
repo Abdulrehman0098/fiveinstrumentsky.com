@@ -60,19 +60,24 @@
     <aside class="doc-toc" aria-label="On this page">
       <h2>On this page</h2>
       <ul>
-        <li><a href="#vib-principle">Scientific principle</a></li>
-        <li><a href="#vib-charts">Reading the live charts</a></li>
+        <li><a href="#vib-scientific-background">Scientific background</a></li>
+        <li><a href="#vib-how-to-use">How to use</a></li>
+        <li><a href="#vib-interpreting">Interpreting live data</a></li>
         <li><a href="#vib-applications">Practical applications</a></li>
         <li><a href="#vib-disclaimer">Accuracy and disclaimer</a></li>
       </ul>
     </aside>
-    <article class="doc-article" id="vib-principle">
-      <h2>Scientific principle</h2>
-      <h3>Reading the live charts</h3>
-      <p>An accelerometer measures proper acceleration including gravity, producing three axes of metres per second squared. RMS, peak and crest factors summarise severity, and a fast Fourier transform decomposes the signal so mechanical frequencies and resonances can be identified.</p>
-      <h3>Practical applications</h3>
+    <article class="doc-article" id="vib-scientific-background">
+      <h2>The science behind the measurement</h2>
+      <p>Vibration analysis starts with acceleration. An accelerometer measures proper acceleration including gravity, producing three axes of metres per second squared. Severity metrics such as RMS, peak and crest factor describe the amplitude distribution, while a fast Fourier transform separates the signal into frequency components.</p>
+      <p>Frequency information matters because the same acceleration level can correspond to very different physical behaviour depending on where it occurs in the spectrum. Resonance, harmonics and sub-structuring all require spectral context.</p>
+      <h2 id="vib-how-to-use">How to use the Vibration Analyzer</h2>
+      <p>Start the measurement, apply the sensitivity setting, and review the three-axis waveform plus the FFT spectrum. Use the events view to flag thresholds, and compare the axis with the largest magnitude before drawing conclusions.</p>
+      <h2 id="vib-interpreting">Interpreting live data</h2>
+      <p>The waveform chart plots acceleration across the axes over time, while the FFT chart maps magnitude against frequency. Peaks and bands reveal the source, and the events view can surface thresholds. Use the axis and frequency readout together for diagnosis.</p>
+      <h2 id="vib-applications">Practical applications</h2>
       <p>Engineers use vibration analysis for machinery health, structural monitoring, vehicle ride quality, sports equipment diagnostics and occupational exposure assessment.</p>
-      <h3 id="vib-disclaimer">Accuracy and disclaimer</h3>
+      <h2 id="vib-disclaimer">Accuracy and disclaimer</h2>
       <p>This tool is for educational purposes and should not replace professional calibration equipment. Sensitivity settings and mounting influence readings.</p>
       <div class="callout warn"><strong>Educational use:</strong> This tool is for educational purposes and should not replace professional calibration equipment.</div>
     </article>

@@ -60,19 +60,27 @@
     <aside class="doc-toc" aria-label="On this page">
       <h2>On this page</h2>
       <ul>
-        <li><a href="#star-principle">Scientific principle</a></li>
-        <li><a href="#star-charts">Reading the live charts</a></li>
+        <li><a href="#star-scientific-background">Scientific background</a></li>
+        <li><a href="#star-how-to-use">How to use</a></li>
+        <li><a href="#star-interpreting">Interpreting live data</a></li>
         <li><a href="#star-applications">Practical applications</a></li>
         <li><a href="#star-disclaimer">Accuracy and disclaimer</a></li>
       </ul>
     </aside>
-    <article class="doc-article" id="star-principle">
-      <h2>Scientific principle</h2>
-      <h3>Reading the live charts</h3>
-      <p>A star's place in the sky is fixed by right ascension and declination, two celestial coordinates expressed in time and arc. The device measures orientation with its magnetometer and gyroscope, then converts the observer's latitude, longitude and sidereal time into altitude and azimuth for each target. The live projection therefore changes as the sky rotates.</p>
-      <h3>Practical applications</h3>
-      <p>The finder supports night-sky education, telescope alignment, deep-sky photography planning and outdoor orientation. Educators use it to demonstrate celestial coordinate mathematics, while field users rely on it for locating planets and deep-sky objects.</p>
-      <h3 id="star-disclaimer">Accuracy and disclaimer</h3>
+    <article class="doc-article" id="star-scientific-background">
+      <h2>The science behind the measurement</h2>
+      <p>A star's position in the sky is defined by two celestial coordinates: right ascension, expressed in hours, and declination, expressed in degrees. These coordinates are fixed in an inertial frame and are independent of the observer, which makes them ideal for repeatable measurement. The device then has to convert that frame into something comparable to what a human eye sees.</p>
+      <p>The conversion uses the observer's latitude and longitude, plus local sidereal time, to derive altitude and azimuth. The magnetometer and gyroscope provide attitude information, and the clock provides sidereal time. Once those inputs exist, the transform can be computed live, which is why the interface can move a star across the sky canvas in real time.</p>
+      <p>Measurement precision depends on sensor quality, calibration and the stability of the attitude solution. Small angular errors in orientation become visible errors in altitude and azimuth, especially at high declinations. That is why the tool reports both the visual projection and the underlying coordinate data.</p>
+      <h2 id="star-how-to-use">How to use the Star Finder</h2>
+      <p>Begin by granting location and motion permission, then point the device toward the region of interest. The search field accepts names, Bayer designations and catalogue identifiers, and the catalogue lookup filters by magnitude and constellation. The time scrubber can replay moments within a 24-hour window, and manual mode lets the user explore specific points.</p>
+      <p>The constellation overlay and grid are display aids; they do not change the coordinate math. The demo mode is intended for environments where motion sensors are unavailable, and it uses simulated attitude data for education.</p>
+      <h2 id="star-interpreting">Reading the live data and charts</h2>
+      <p>The dome projection plots altitude against azimuth for the visible sky, with grid and constellation layers available. The time scrubber maps elapsed time to sky position, so the chart can be animated through a night. The readouts expose the numeric coordinates, which is the authoritative layer for measurement.</p>
+      <p>When interpreting a reading, compare the reported altitude with the expected horizon limit for the observer's latitude, and treat magnetic interference as a source of error. The status layer reports whether the attitude source is live, demo or denied.</p>
+      <h2 id="star-applications">Practical applications</h2>
+      <p>The scientific background makes the tool useful for astronomy education, telescope alignment, deep-sky photography planning and naked-eye navigation. Classroom use can demonstrate coordinate transforms without expensive equipment, while field users can plan observation sessions from a single interface.</p>
+      <h2 id="star-disclaimer">Accuracy and disclaimer</h2>
       <p>This tool is for educational purposes and should not replace professional calibration equipment. Live values depend on device sensors and local magnetic or environmental conditions.</p>
       <div class="callout warn"><strong>Educational use:</strong> This tool is for educational purposes and should not replace professional calibration equipment.</div>
     </article>

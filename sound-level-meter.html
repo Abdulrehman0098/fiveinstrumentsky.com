@@ -60,19 +60,25 @@
     <aside class="doc-toc" aria-label="On this page">
       <h2>On this page</h2>
       <ul>
-        <li><a href="#sound-principle">Scientific principle</a></li>
-        <li><a href="#sound-charts">Reading the live charts</a></li>
+        <li><a href="#sound-scientific-background">Scientific background</a></li>
+        <li><a href="#sound-how-to-use">How to use</a></li>
+        <li><a href="#sound-interpreting">Interpreting live data</a></li>
         <li><a href="#sound-applications">Practical applications</a></li>
         <li><a href="#sound-disclaimer">Accuracy and disclaimer</a></li>
       </ul>
     </aside>
-    <article class="doc-article" id="sound-principle">
-      <h2>Scientific principle</h2>
-      <h3>Reading the live charts</h3>
-      <p>A microphone converts sound pressure into an electrical signal, and the browser samples that signal to derive loudness in decibels relative to 20 micropascals, the human hearing threshold. Root-mean-square, peak and A or C weighted values describe amplitude, while an FFT separates the signal into bands from 20 Hz to 20 kHz.</p>
-      <h3>Practical applications</h3>
+    <article class="doc-article" id="sound-scientific-background">
+      <h2>The science behind the measurement</h2>
+      <p>Sound is a pressure wave that propagates through air and reaches the microphone diaphragm, which converts pressure changes into an electrical signal. The signal is sampled and the resulting amplitude is expressed in decibels relative to a reference pressure of 20 micropascals, the threshold of human hearing.</p>
+      <p>Loudness is summarised with root-mean-square, peak and frequency-weighted values, typically A-weighted or C-weighted. An FFT then decomposes the signal into frequency bands from 20 Hz to 20 kHz, allowing the measurement to describe both level and spectral content.</p>
+      <p>Exposure assessment requires duration as well as instantaneous level. Short peaks can be harmless while sustained levels drive hearing risk, which is why the safety indicator exists alongside the live readout.</p>
+      <h2 id="sound-how-to-use">How to use the Sound Level Meter</h2>
+      <p>Start the measurement, allow microphone permission, and keep the device at a consistent position. Use the safety bar and indicator alongside the readouts, and use the reset controls when analysing peaks.</p>
+      <h2 id="sound-interpreting">Interpreting live data</h2>
+      <p>The waveform chart plots amplitude over time, the spectrum chart maps magnitude against frequency, and the history chart keeps a rolling window. Spikes reveal transients and broad humps reveal steady tones or masking noise; the safety indicator contextualises exposure.</p>
+      <h2 id="sound-applications">Practical applications</h2>
       <p>The meter suits workplace noise assessment, environmental acoustics, hearing protection planning, classroom sound and field audio monitoring. Repeated or long-duration exposure is where measurement becomes meaningful.</p>
-      <h3 id="sound-disclaimer">Accuracy and disclaimer</h3>
+      <h2 id="sound-disclaimer">Accuracy and disclaimer</h2>
       <p>This tool is for educational purposes and should not replace professional calibration equipment. Microphone placement and room treatment materially change results.</p>
       <div class="callout warn"><strong>Educational use:</strong> This tool is for educational purposes and should not replace professional calibration equipment.</div>
     </article>
