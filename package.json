@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "lint": "node --check scripts/utils.js && node --check scripts/bus.js && node --check scripts/loop.js && node --check scripts/permissions.js && node --check scripts/units.js && node --check scripts/theme.js && node --check scripts/demo.js && node --check scripts/galaxy.js && node --check scripts/lib/astronomy.js && node --check scripts/lib/tle-satellite.js && node --check scripts/instruments/stars.js && node --check scripts/instruments/sound.js && node --check scripts/instruments/vibration.js && node --check scripts/instruments/magnetic.js && node --check scripts/instruments/altimeter.js && node --check scripts/main.js && echo 'All JS pass syntax check'",
+    "build": "node tools/validate-site.js",
     "test": "node tests/astro.test.js && node tests/id-audit.js && node tests/css-vars.js",
     "verify": "node tests/verify-http.js",
     "verify:faq": "node tests/verify-faq.js",
