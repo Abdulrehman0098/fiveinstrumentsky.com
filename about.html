@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#02040a">
 <meta name="color-scheme" content="dark">
 <title>About Us | Field Instruments</title>
-<meta name="description" content="Field Instruments is an educational project bringing precision measurement tools to the browser for students, hobbyists and field researchers.">
+<meta name="description" content="Learn who builds Field Instruments, how the five browser sensor tools work, and the project's approach to accuracy, privacy and educational measurement.">
 <link rel="canonical" href="https://fiveinstrumentsky.xyz/about.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Field Instruments">
@@ -16,13 +16,17 @@
 <meta property="og:locale" content="en_US">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/assets/css/premium.css">
+<link rel="stylesheet" href="/styles/adsense-overhaul.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "AboutPage",
   "name": "About Field Instruments",
   "url": "https://fiveinstrumentsky.xyz/about.html",
-  "isAccessibleForFree": true
+  "description": "Who builds Field Instruments, how the five browser sensor tools work, and the project's approach to accuracy, privacy and educational measurement.",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Person", "name": "Abdul Rehman", "url": "https://fiveinstrumentsky.xyz/about.html#author" },
+  "publisher": { "@type": "Organization", "name": "Field Instruments", "url": "https://fiveinstrumentsky.xyz/" }
 }
 </script>
 </head>
@@ -59,20 +63,44 @@
       <ul>
         <li><a href="#about-mission">Our mission</a></li>
         <li><a href="#about-what">What we build</a></li>
+        <li><a href="#about-how">How the tools work</a></li>
         <li><a href="#about-approach">Our approach</a></li>
+        <li><a href="#author">About the author</a></li>
+        <li><a href="#about-trust">Accuracy and privacy</a></li>
         <li><a href="#about-contact">Get in touch</a></li>
       </ul>
     </aside>
     <article class="doc-article" id="about-mission">
       <h2>Our mission</h2>
       <p>Field Instruments is an educational project dedicated to making precision measurement tools accessible to everyone with a browser. We believe that curious minds should not have to install specialist software or buy expensive hardware before they can explore how the physical world is measured.</p>
+      <p>The project exists to shorten the distance between a scientific idea and a hands-on experiment. A student who has read about decibels, celestial coordinates or barometric pressure can open a tab, start a measurement and watch the abstract concept become a moving chart. That immediate feedback is the point. The written guides are there to make sure the chart is interpreted rather than merely admired.</p>
+
       <h2 id="about-what">What we build</h2>
-      <p>The project ships five browser instruments: a star finder, a sound level meter, a vibration analyzer, a magnetic field mapper and a barometric altimeter. Each tool turns device sensors into live, explorable measurements and each one is designed to run entirely on the user's device.</p>
+      <p>The project ships five browser instruments: a star finder, a sound level meter, a vibration analyzer, a magnetic field mapper and a barometric altimeter. Each tool turns device sensors into live, explorable measurements, and each one is designed to run entirely on the user's device. No account is required, and no measurement is uploaded.</p>
+      <p>Every instrument follows the same structure. There is a live dashboard with charts and numeric readouts, a short explanation beside the dashboard, a longer technical guide, and a clear statement of limitations. The repetition is deliberate. A reader should be able to move from a raw number to an interpretation without leaving the site.</p>
+
+      <h2 id="about-how">How the tools work</h2>
+      <p>Browsers expose sensors through standard web APIs. Microphone audio arrives as a stream of samples, motion sensors report acceleration and rotation, the magnetometer reports a three-axis field vector, and the geolocation API supplies latitude and longitude after permission is granted. A barometer, where the device has one, reports atmospheric pressure. The instruments read those streams, perform the relevant calculations in JavaScript and draw the result on a canvas.</p>
+      <p>Nothing in that pipeline requires a server. The catalogue of stars is a static file, the astronomical transforms run locally, the Fourier transforms run locally and the CSV export is generated in the browser. Closing the tab ends the session. That architecture is both a privacy decision and a reliability decision: once the page has loaded, the tools keep working without a network connection.</p>
+
       <h2 id="about-approach">Our approach</h2>
-      <p>We favour local-first design, open scientific concepts and plain language explanations. Instrument pages pair live dashboards with written context so that a reading can be interpreted rather than merely displayed.</p>
-      <div class="callout"><strong>Educational use:</strong> These tools are for educational purposes and should not replace professional calibration equipment.</div>
+      <p>We favour local-first design, open scientific concepts and plain-language explanations. Instrument pages pair live dashboards with written context so that a reading can be interpreted rather than merely displayed. Where a measurement has a known weakness, we say so next to the tool instead of hiding it in a footnote.</p>
+      <p>The charts are deliberately legible rather than decorative. A waveform shows time, a spectrum shows frequency, a history chart shows change and a numeric readout gives the current value. Each view answers a different question. Learning which view to trust for which question is a large part of becoming fluent with an instrument.</p>
+
+      <h2 id="author">About the author</h2>
+      <div class="author-card">
+        <p><strong>Field Instruments is independently designed, built and maintained by Abdul Rehman.</strong></p>
+        <p>Abdul is a web developer who works on browser-based scientific and educational tools. He wrote the instrument interfaces and the explanatory guides, and he maintains the site, the sensor integrations and the accuracy notes that accompany each tool. The project is intentionally small and independent: there is no editorial board, no sponsored instrument reviews and no hidden commercial relationship with sensor manufacturers.</p>
+        <p>Questions, corrections and reproducible bug reports are welcome through the <a href="/contact.html">contact page</a>. Corrections that improve technical accuracy are treated as a priority.</p>
+      </div>
+
+      <h2 id="about-trust">Accuracy, privacy and advertising</h2>
+      <p>These are educational instruments, not certified laboratory equipment. Phone sensors vary widely, browser implementations differ and environmental conditions affect almost every measurement. Each guide explains the relevant limits, and each tool is honest about what it cannot do. Where absolute accuracy matters, the correct answer is a calibrated instrument operated by a qualified professional.</p>
+      <p>Sensor data stays on the device. The site does not create user accounts, does not store measurements on a server and does not sell personal information. Advertising, where present, is served by Google AdSense and is described in the <a href="/privacy.html">privacy policy</a>, including the use of cookies and the DoubleClick DART cookie. Advertising never changes the measurement or the interpretation of a reading.</p>
+      <div class="callout"><strong>Educational use:</strong> These tools are for educational and experimental purposes and should not replace professional calibration equipment.</div>
+
       <h2 id="about-contact">Get in touch</h2>
-      <p>Found a bug or want to suggest a new instrument? Visit our <a href="/contact.html">Contact</a> page.</p>
+      <p>Found a bug, spotted an error in a guide or want to suggest a new instrument? Visit our <a href="/contact.html">Contact</a> page. For technical questions, include your browser, device model and the steps that reproduce the issue so the report can be investigated properly.</p>
     </article>
   </div>
 </main>

@@ -16,6 +16,7 @@
 <meta property="og:locale" content="en_US">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/assets/css/premium.css">
+<link rel="stylesheet" href="/styles/adsense-overhaul.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -59,24 +60,42 @@
       <ul>
         <li><a href="#kb-instruments">Guides by instrument</a></li>
         <li><a href="#kb-science">How measurement works</a></li>
+        <li><a href="#kb-reading">Reading a guide</a></li>
+        <li><a href="#kb-choosing">Choosing the right tool</a></li>
         <li><a href="#kb-accuracy">Accuracy and offline use</a></li>
         <li><a href="#kb-contact">Contact</a></li>
       </ul>
     </aside>
     <article class="doc-article" id="kb-instruments">
       <h2>Guides by instrument</h2>
-      <p>Every instrument in the dashboard has a dedicated written guide that explains the underlying measurement, how to read the live output and where the tool is applied in the real world.</p>
+      <p>Every instrument in the dashboard has a dedicated written guide that explains the underlying measurement, how to read the live output and where the tool is applied in the real world. The guides are written for a general reader, but they do not hide the assumptions that determine whether a number is meaningful.</p>
       <div class="kb-grid">
-        <a class="kb-card" href="/articles/index.html#stars"><h3>Star Finder</h3><p>Right ascension, declination and live sky projection for education and observation planning.</p><span class="kb-more">Read full guide</span></a>
+        <a class="kb-card" href="/articles/star-finder.html"><h3>Star Finder</h3><p>Right ascension, declination and live sky projection for education and observation planning.</p><span class="kb-more">Read full guide</span></a>
         <a class="kb-card" href="/articles/sound-meter.html"><h3>Sound Level Meter</h3><p>Decibel measurement, FFT spectrum and acoustic safety interpretation.</p><span class="kb-more">Read full guide</span></a>
         <a class="kb-card" href="/articles/vibration.html"><h3>Vibration Analyzer</h3><p>Accelerometer axes, RMS metrics and frequency analysis.</p><span class="kb-more">Read full guide</span></a>
         <a class="kb-card" href="/articles/magnetic.html"><h3>Magnetic Field Mapper</h3><p>Magnetic vector mapping, anomalies and calibration context.</p><span class="kb-more">Read full guide</span></a>
         <a class="kb-card" href="/articles/altimeter.html"><h3>Barometric Altimeter</h3><p>Pressure models, altitude history and GPS-baro comparison.</p><span class="kb-more">Read full guide</span></a>
       </div>
+
       <h2 id="kb-science">How measurement works</h2>
-      <p>Scientific instruments convert physical quantities into signals, then convert signals into numbers. Browser instruments use device sensors that are sampled in software, which keeps the pipeline local and transparent.</p>
+      <p>Scientific instruments convert physical quantities into signals, then convert signals into numbers. A microphone converts pressure into voltage, an accelerometer converts motion into a changing capacitance, and a magnetometer converts a magnetic field into a measurable electrical property. An analogue-to-digital converter samples the signal at a fixed rate, and software turns the samples into averages, peaks or frequency spectra.</p>
+      <p>Every stage has an assumption. Sampling limits the highest frequency that can be represented. Averaging hides short events. A calibration factor maps a raw number to a physical unit, and an uncalibrated sensor reports a plausible number that may still be wrong. Browser instruments use the sensors already present in a phone or computer, which keeps the pipeline local and transparent but also means the hardware was not chosen for the measurement.</p>
+      <p>That is why each guide separates three ideas: what the sensor physically measures, what the software computes from it and what the result is safe to conclude. Keeping those layers distinct is the difference between reading an instrument and guessing from a number.</p>
+
+      <h2 id="kb-reading">Reading a guide</h2>
+      <p>Each guide follows a similar path. It starts with the scientific principle, explains the charts and readouts, describes practical applications and ends with limitations and calibration. The limitations section is not a disclaimer bolted on at the end; it is part of the measurement. A barometric altitude can be wrong because the weather changed, a compass can point incorrectly near steel and a sound reading can be distorted by automatic gain control.</p>
+      <p>For a quick visit, read the principle and the chart explanation, then check the limitations before acting on a result. For teaching, the applications section usually provides a ready-made demonstration. For troubleshooting, compare the live output with a known reference and note the device, browser and conditions, because those details determine whether a difference is an error or an expected property of the sensor.</p>
+
+      <h2 id="kb-choosing">Choosing the right tool</h2>
+      <p>Use the Star Finder when the question is where an object is in the sky, not when the question is which way is north; for direction, the magnetic mapper is the more direct instrument. Use the Sound Level Meter for airborne acoustic pressure and the Vibration Analyzer for motion of a surface or structure. They are related but not interchangeable: a loud sound does not necessarily mean a strong structural vibration, and a vibrating machine may be quiet.</p>
+      <p>Use the Magnetic Field Mapper for relative changes in a magnetic field, such as finding a ferrous stud or checking for interference before trusting a compass. Use the Barometric Altimeter for relative height change and short-term vertical motion. GPS is a better choice for absolute horizontal position, while a barometer is often better for detecting a small change in height.</p>
+
       <h2 id="kb-accuracy">Accuracy and offline use</h2>
-      <p>Accuracy varies by hardware. These tools are educational and should not replace professional calibration equipment.</p>
+      <p>Accuracy varies by hardware. Two phones can report different sound levels in the same room, and a laptop may have no barometer or magnetometer at all. Browser permissions, operating-system processing and the physical mounting of the device all matter. Where a measurement supports a safety, medical, legal or engineering decision, use calibrated equipment and a qualified professional.</p>
+      <p>Once a page has loaded, the calculations run locally and the tools continue to work without a network connection. Nothing you measure is uploaded. That makes the site useful in a classroom with unreliable Wi-Fi and in the field where a signal is unavailable, provided the device has the required sensor and the page was loaded in advance.</p>
+
+      <h2 id="kb-contact">Contact</h2>
+      <p>If a guide is unclear or a result looks wrong, the <a href="/contact.html">contact page</a> explains what information to include. Corrections with a reproducible case are always welcome.</p>
     </article>
   </div>
 </main>
