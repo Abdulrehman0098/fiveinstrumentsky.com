@@ -5,20 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#02040a">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Field Instruments: five precision browser-based sensors for stars, sound, vibration, magnetic fields and altitude. All data stays on your device.">
+<meta name="description" content="Use five free browser-based instruments: a star finder, sound level meter, vibration analyzer, magnetic field mapper and barometric altimeter. Live charts, no uploads.">
 <link rel="canonical" href="https://fiveinstrumentsky.xyz/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Field Instruments">
-<meta property="og:title" content="Field Instruments | Free Precision Sensor Tools">
-<meta property="og:description" content="Five precision browser-based sensors for stars, sound, vibration, magnetic fields and altitude. All data stays on your device.">
+<meta property="og:title" content="Field Instruments | Star Finder, Sound, Vibration, Magnetic & Altimeter">
+<meta property="og:description" content="Five free browser-based instruments with live charts: star finder, sound level meter, vibration analyzer, magnetic field mapper and barometric altimeter.">
 <meta property="og:url" content="https://fiveinstrumentsky.xyz/">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebApplication","name":"Field Instruments","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0"},"url":"https://fiveinstrumentsky.xyz/","description":"Five precision browser-based sensors for stars, sound, vibration, magnetic fields and altitude."}
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Field Instruments",
+  "alternateName": "Five Instruments Sky",
+  "url": "https://fiveinstrumentsky.xyz/",
+  "applicationCategory": "UtilitiesApplication",
+  "applicationSubCategory": "Scientific instrument",
+  "operatingSystem": "Any modern browser on desktop, tablet or phone",
+  "browserRequirements": "Requires JavaScript. Microphone, motion and orientation sensors require HTTPS and user permission.",
+  "description": "Five free browser-based scientific instruments: a star finder, a sound level meter, a vibration analyzer, a magnetic field mapper and a barometric altimeter, each with live charts and local-only data processing.",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "featureList": [
+    "Star Finder with celestial coordinates and a live sky chart",
+    "Sound Level Meter with waveform, FFT spectrum and Leq history",
+    "Vibration Analyzer with three-axis waveform and FFT spectrum",
+    "Magnetic Field Mapper with vector output and anomaly trail",
+    "Barometric Altimeter with GPS comparison and pressure history"
+  ],
+  "creator": { "@type": "Person", "name": "Abdul Rehman", "url": "https://fiveinstrumentsky.xyz/about.html#author" },
+  "publisher": { "@type": "Organization", "name": "Field Instruments", "url": "https://fiveinstrumentsky.xyz/" }
+}
 </script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FIELD INSTRUMENTS">
-<title>Field Instruments | Free Precision Sensor Tools</title>
+<title>Field Instruments | Star Finder, Sound, Vibration, Magnetic & Altimeter</title>
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
 <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -2135,6 +2157,7 @@ html[data-theme="night"] .chart-block {
 }
 
 </style>
+<link rel="stylesheet" href="styles/adsense-overhaul.css">
 <script>
 (function(){
   'use strict';
@@ -2478,6 +2501,143 @@ html[data-theme="night"] .chart-block {
   </div>
   </section>
 
+  <section class="fi-guides" id="guides" aria-labelledby="guides-heading">
+    <div class="fi-guides-head">
+      <p class="fi-eyebrow">Understanding the data</p>
+      <h2 id="guides-heading">How each instrument works</h2>
+      <p class="fi-lede">Five short technical guides explain the science behind each dashboard, what every chart and readout represents, where the measurement is genuinely useful, and where it stops being trustworthy. The live tools run entirely in your browser; these guides explain how to interpret what they show.</p>
+      <nav class="fi-guide-nav" aria-label="Instrument guides">
+        <a href="#about-stars">Star Finder</a>
+        <a href="#about-sound">Sound Level Meter</a>
+        <a href="#about-vibration">Vibration Analyzer</a>
+        <a href="#about-magnetic">Magnetic Field Mapper</a>
+        <a href="#about-altimeter">Barometric Altimeter</a>
+      </nav>
+    </div>
+
+    <article class="fi-guide" id="about-stars">
+      <p class="fi-guide-kicker">Star Finder</p>
+      <h2>How the Star Finder turns catalogue coordinates into your local sky</h2>
+      <p>A star chart is a promise that the sky can be described with numbers. The Star Finder keeps that promise in a browser tab. It does not photograph the sky, and it does not send your location to a server. Instead it solves a geometry problem: given a star's fixed address on the celestial sphere, where should that star appear above your horizon at this moment?</p>
+      <p>The answer combines a star catalogue, an astronomical coordinate transform, a clock and your device's compass and motion sensors. </p>
+
+      <h3>Two coordinates that ignore the observer</h3>
+      <p>Astronomers describe a star with right ascension and declination. Right ascension is measured in hours, with twenty-four hours representing a full circle, counted eastward from the vernal equinox. Declination is measured in degrees north or south of the celestial equator. These coordinates belong to the celestial sphere rather than to a particular place on Earth, so they do not change as the planet rotates or as you travel. A catalogue entry is a durable address.</p>
+      <p>The tool ships with bright stars, constellation line patterns, planets, a selection of Messier objects and a small satellite catalogue. Planet positions are calculated for the current date. Deep-sky objects are drawn at their catalogue positions, and constellation lines are visual aids rather than physical structures.</p>
+
+      <h3>From catalogue to horizon</h3>
+      <p>Placing an object on your sky requires three inputs: the current time, your latitude and longitude, and the orientation of the device. Time provides local sidereal time, which is the angle of the celestial sphere above your local meridian. Subtracting right ascension from local sidereal time gives the hour angle. Hour angle, declination and latitude then feed a standard spherical trigonometry calculation that produces altitude and azimuth. Altitude is the angle above the horizon, from zero at the horizon to ninety at the zenith. Azimuth is the compass bearing around the horizon.</p>
+      <p>The same star can be overhead in one city and invisible in another at the same instant. The time scrubber is useful because advancing it moves sidereal time forward and rotates the whole dome, so you can preview the sky later in the night.</p>
+
+      <h3>What the display actually represents</h3>
+      <p>The dome is an alt-azimuth projection. The horizon sits at zero degrees, the zenith at the centre or top depending on the view, and cardinal letters mark north, east, south and west. Star dot size follows apparent magnitude, where a smaller magnitude number means a brighter star. Colour follows the B-V index, moving from blue-white through yellow to orange. The grid and cardinal toggles overlay altitude and bearing reference lines. Satellite positions are propagated from orbital elements and should be treated as approximate rather than precision predictions.</p>
+
+      <h3>Where your sensors enter the calculation</h3>
+      <p>Device attitude is a fusion of three sensors. The magnetometer supplies heading, the gyroscope measures rotation and the accelerometer supplies the gravity direction. The browser combines them into an orientation estimate, while the GPS or network location supplies latitude and longitude. Each input has its own error. A magnetic phone case, a laptop speaker or a steel table can bias the compass by many degrees. Gyroscope integration accumulates drift over time. Location accuracy depends on the browser and the environment. A figure-eight motion can help the magnetometer recalibrate.</p>
+
+      <h3>Practical uses</h3>
+      <p>The clearest use is teaching. Coordinate transforms, sidereal time and horizon limits become tangible when a phone is moved and the dome responds. Amateur astronomers use the tool to check whether a target will be above the horizon during a planned session. The tool is a planning and teaching aid, not a replacement for a calibrated equatorial mount.</p>
+
+      <h3>Limitations and calibration</h3>
+      <p>Atmospheric refraction lifts objects slightly near the horizon and is not modelled. Precession, proper motion and parallax are ignored, which is irrelevant for teaching but important for arcsecond work. Magnetometer noise, gyroscope drift and browser permission prompts all affect the live view. Treat altitude and azimuth as approximate, compare the display against a star you can identify, and keep the device away from magnetic material. The Star Finder is an educational instrument, not a certified navigation system.</p>
+      <p class="fi-guide-cta"><a class="fi-guide-link" href="#stars">Open the Star Finder</a><a class="fi-guide-link ghost" href="/articles/star-finder.html">Read the extended guide</a></p>
+    </article>
+
+    <article class="fi-guide" id="about-sound">
+      <p class="fi-guide-kicker">Sound Level Meter</p>
+      <h2>What a decibel reading means, and how to read the waveform and spectrum</h2>
+      <p>The Sound Level Meter turns tiny pressure fluctuations in the air into a number on a screen. A microphone diaphragm moves in response to sound, a circuit converts that movement into a voltage, and an analogue-to-digital converter samples the voltage thousands of times per second. The browser then reduces those samples to root-mean-square amplitude, converts the result to decibels and displays a waveform, a frequency spectrum and a short history.</p>
+      <p>That chain is elegant, but every stage introduces assumptions. A phone microphone is designed for speech, not for laboratory acoustics. Understanding the conversions explains why the same room can produce different numbers on different devices.</p>
+
+      <h3>The decibel is a ratio, not an absolute unit</h3>
+      <p>Sound pressure level is defined as twenty times the base-ten logarithm of the measured pressure divided by a reference pressure of twenty micropascals. The logarithm compresses an enormous range into a manageable scale. An increase of about six decibels corresponds to a doubling of sound pressure, while ten decibels represents ten times the acoustic power. Human loudness perception is also roughly logarithmic, so a ten-decibel increase usually sounds about twice as loud.</p>
+      <p>The meter offers A-weighting and C-weighting. A-weighting attenuates low and very high frequencies to approximate the ear's sensitivity at moderate levels, and it is the usual choice for environmental and hearing-exposure readings. C-weighting is flatter and is more useful for peaks and low-frequency content. The dBFS figure is different again: it describes digital level relative to full scale and is not a sound pressure level until a calibration offset maps it to the acoustic world.</p>
+
+      <h3>Reading the waveform, spectrum and history</h3>
+      <p>The waveform shows instantaneous amplitude against time. A steady tone looks like a smooth oscillation, speech looks irregular, and a clipped waveform with flat tops means the input is overloaded and the reading is too low. The spectrum converts a block of samples into frequency content using a fast Fourier transform. A narrow peak identifies a tone such as mains hum at fifty or sixty hertz, a fan blade or a musical note. A broad rise across many frequencies suggests noise rather than a single source. Frequency resolution depends on sample rate and transform size.</p>
+      <p>The history chart shows how the level changed over the last minute, while the equivalent continuous level, or Leq, summarises the same energy as one steady level. Peak hold keeps the highest transient, which matters for impulse noise. The safety bar is a coarse guide to exposure. A quiet room, a conversation and a rock concert occupy very different parts of the scale, and distance matters: in a free field, level falls by about six decibels each time you double the distance from a point source.</p>
+
+      <h3>Calibration and measurement practice</h3>
+      <p>The calibration offset field applies a constant correction in decibels. For serious work, a dedicated acoustic calibrator producing a known level at one kilohertz is the correct way to set that offset. Without one, the absolute accuracy of a phone is uncertain, although relative changes and comparisons remain useful. Keep the microphone port clear, avoid covering it with a hand, use a windscreen outdoors and note the weighting and distance when recording a result.</p>
+
+      <h3>Practical applications</h3>
+      <p>The meter is useful for hearing-conservation education, checking rehearsal and classroom levels, comparing HVAC or appliance noise, documenting a noisy environment and choosing a quieter place to sleep. It can support a conversation with a landlord or employer, but it does not replace a certified occupational measurement. </p>
+
+      <h3>Limitations and disclaimer</h3>
+      <p>Phone microphones vary in sensitivity and frequency response, operating systems may apply automatic gain control or noise suppression, and the browser cannot guarantee a fixed sample rate. Low frequencies and very high frequencies are often rolled off. The tool does not implement certified time weightings or Type 1 or Type 2 meter standards. Treat every reading as an estimate, calibrate when accuracy matters, and never rely on it alone for a legal, medical or workplace safety decision.</p>
+      <p class="fi-guide-cta"><a class="fi-guide-link" href="#sound">Open the Sound Level Meter</a><a class="fi-guide-link ghost" href="/articles/sound-meter.html">Read the extended guide</a></p>
+    </article>
+
+    <article class="fi-guide" id="about-vibration">
+      <p class="fi-guide-kicker">Vibration Analyzer</p>
+      <h2>Acceleration, RMS, peak and FFT: reading vibration without misreading gravity</h2>
+      <p>Vibration is motion that repeats or changes quickly. The Vibration Analyzer measures it with the accelerometer already inside a phone or tablet. Inside that sensor, a tiny proof mass is suspended on a silicon structure. When the device accelerates, the mass displaces, the displacement changes a capacitance, and the circuit reports acceleration along three perpendicular axes. The result is a stream of samples in metres per second squared, which the tool also expresses in units of standard gravity.</p>
+      <p>One consequence surprises almost everyone: a phone lying still does not read zero. Gravity produces an acceleration of about 9.81 metres per second squared, and the sensor reports how that vector projects onto each axis. A phone flat on a table reads roughly one g on the vertical axis. Vibration appears as a changing component riding on top of that constant. Orientation therefore matters as much as motion.</p>
+
+      <h3>From raw samples to useful numbers</h3>
+      <p>The waveform shows raw acceleration for each axis against time. The magnitude combines the three axes into a single positive value. RMS, the root mean square, expresses the energy content of the signal over the sampling window and is usually the best single number for continuous vibration. Peak records the largest absolute excursion and is sensitive to short shocks. Crest factor is peak divided by RMS: a pure sine wave has a crest factor near 1.41, while impulsive signals such as a tap or a bump produce much higher values.</p>
+      <p>Peak frequency is taken from the dominant bin of the frequency spectrum. It is a clue, not a diagnosis. A rotating machine often produces a strong component at its rotation frequency, with harmonics at multiples of that frequency. Misalignment and looseness add their own patterns. Bearings produce energy at higher frequencies that may sit outside the range shown by a phone sensor.</p>
+
+      <h3>Why the frequency domain matters</h3>
+      <p>The fast Fourier transform converts a block of time-domain samples into a spectrum of frequency components. This is powerful because many physical causes have a characteristic frequency. A fan running at fifteen hundred revolutions per minute produces a fundamental near twenty-five hertz. A loose panel may resonate at a frequency that appears only when it is excited. The spectrum makes those components visible even when the raw waveform looks like noise.</p>
+      <p>Sampling limits what can be seen. A digital system can only represent frequencies below half its sample rate, and content above that limit can fold back as a false low-frequency peak. The displayed range in this tool is deliberately low, which suits structural, vehicle and whole-body vibration demonstrations, but it is not a substitute for a laboratory analyser with selectable anti-alias filters and a known calibration.</p>
+
+      <h3>Practical applications</h3>
+      <p>Use the analyzer to compare a washing machine during spin cycles, to demonstrate resonance on a table or floor, to check whether a fan or pump is getting rougher, to explore vehicle noise and vibration, or to teach the difference between time-domain and frequency-domain views. A tap test can reveal the resonant frequency of a panel or a small structure. In education, the direct link between a physical shake and a moving waveform is unusually effective.</p>
+      <p>Mount the device firmly for repeatable comparisons. A loose phone rattles against a surface and creates its own signal. Keep the orientation consistent between measurements, because gravity changes the axis split. Use the sensitivity control to bring small signals into view, but remember that it scales the display rather than calibrating the sensor.</p>
+
+      <h3>Limitations and disclaimer</h3>
+      <p>Phone accelerometers have a limited range, limited bandwidth and unknown absolute calibration. Cases, mounts and hand contact damp high frequencies. Temperature changes cause drift. The sensitivity slider is a display aid, not a traceable gain setting. The tool does not implement ISO machinery vibration standards or human exposure standards. It cannot certify a machine as safe or diagnose a bearing with certainty. Use it for learning, relative comparison and early curiosity, and consult a qualified engineer with calibrated equipment for maintenance or safety decisions.</p>
+      <p class="fi-guide-cta"><a class="fi-guide-link" href="#vibration">Open the Vibration Analyzer</a><a class="fi-guide-link ghost" href="/articles/vibration.html">Read the extended guide</a></p>
+    </article>
+
+    <article class="fi-guide" id="about-magnetic">
+      <p class="fi-guide-kicker">Magnetic Field Mapper</p>
+      <h2>Earth's magnetic field, sensor distortion, and what an anomaly really tells you</h2>
+      <p>A smartphone magnetometer is a small solid-state sensor that measures the local magnetic field along three axes. That field is always present. Earth generates a geomagnetic field of roughly twenty-five to sixty-five microtesla at the surface, depending on latitude, and the sensor also picks up nearby magnets, steel, current-carrying wires and speaker drivers. The Magnetic Field Mapper displays the combined vector, its total magnitude and a running trail, which makes both the planetary signal and the local distortions visible.</p>
+      <p>The field is a vector, not a single number. Its direction points toward magnetic north and downward or upward depending on hemisphere and latitude. The angle between magnetic north and true north is called declination, and it varies by location and changes slowly over time. The angle between the field direction and the horizontal plane is called inclination or dip. A compass uses the horizontal component; a magnetometer sees all three components.</p>
+
+      <h3>Hard iron and soft iron distortion</h3>
+      <p>Nearby magnetised material adds a fixed offset to every reading, known as hard iron distortion. A phone case with a magnetic clasp, a steel desk or a speaker can produce it. Soft iron distortion is different: nearby ferromagnetic material reshapes the field in a way that depends on the device's orientation. The result is a distorted response that can make a compass swing incorrectly as the phone turns.</p>
+      <p>Calibration attempts to remove these effects by rotating the device through many orientations and fitting the readings to a sphere or ellipsoid. The centre of that shape estimates the hard iron offset. A figure-eight motion is the familiar user-facing version of the same idea. Calibration improves consistency, but it cannot make a phone into a survey-grade instrument, and it cannot separate a real environmental anomaly from a magnetic object attached to the phone.</p>
+
+      <h3>Reading the vector, total field and anomaly trail</h3>
+      <p>The three axis readouts show the field components in the device frame. Rotating the device changes those components even when the surrounding field is unchanged, so axis values alone are not a map of the environment. Total field is the vector magnitude and is much less sensitive to rotation, which makes it the more useful number for spotting changes. The comparison against an expected Earth field is a rough guide, not an absolute truth, because the expected value depends on location and altitude.</p>
+      <p>The anomaly bar highlights departures beyond a threshold you choose. The heat map trail accumulates recent readings so that a slow change becomes visible. The tone and haptic options provide feedback without requiring you to watch the screen. A genuine local anomaly usually appears as a smooth change that grows as you approach the source, then falls as you move away. A jump that follows the device orientation is more likely a calibration artifact.</p>
+
+      <h3>Practical applications</h3>
+      <p>The mapper is useful for finding ferrous studs, pipes, screws and rebar in a wall, for checking whether a desk or vehicle is disturbing a compass before navigation, for demonstrating the shape of Earth's field in a classroom, and for introducing the idea of magnetic surveying. Geology and archaeology use sensitive magnetometers to detect buried features, but those instruments are designed for the job and are far more stable than a phone.</p>
+      <p>It is also a good tool for debunking. Many reported paranormal magnetic anomalies turn out to be speakers, wiring, furniture hardware or the phone's own magnet. A careful walk-through with a stable total-field reading is usually enough to identify the object responsible.</p>
+
+      <h3>Limitations and disclaimer</h3>
+      <p>The sensor is small, noisy and not absolutely calibrated. Nearby electronics, current, temperature and the phone's own components all contribute. Field strength from a small magnet falls rapidly with distance, roughly as the cube of distance for a dipole, so readings change quickly near the source and flatten farther away. The tool does not compute true north or a declination-corrected bearing. It is not a geological survey instrument and should not be used for navigation safety, buried-utility location or scientific measurement that requires traceable accuracy. Use it for exploration, comparison and education.</p>
+      <p class="fi-guide-cta"><a class="fi-guide-link" href="#magnetic">Open the Magnetic Field Mapper</a><a class="fi-guide-link ghost" href="/articles/magnetic.html">Read the extended guide</a></p>
+    </article>
+
+    <article class="fi-guide" id="about-altimeter">
+      <p class="fi-guide-kicker">Barometric Altimeter</p>
+      <h2>How pressure becomes altitude, and why weather can look like a climb</h2>
+      <p>A barometric altimeter does not measure height directly. It measures atmospheric pressure and infers height from a model of how pressure changes with altitude. That indirect step is the source of both the instrument's usefulness and its most important limitation. Near sea level, pressure falls by roughly twelve hectopascals for every hundred metres of ascent, but the relationship is not linear and it depends on temperature and on the weather.</p>
+      <p>The Field Instruments altimeter reads the device barometer, converts pressure to altitude using the International Standard Atmosphere, compares that estimate with GPS altitude and records a short history. It also derives a pressure trend and a vertical speed. Each output answers a slightly different question.</p>
+
+      <h3>The standard atmosphere and the pressure altitude formula</h3>
+      <p>The International Standard Atmosphere assumes a sea-level pressure of 1013.25 hectopascals, a sea-level temperature of fifteen degrees Celsius and a temperature lapse rate of 6.5 degrees Celsius per kilometre in the lower atmosphere. Under those assumptions, pressure altitude can be written as 44330 multiplied by one minus the ratio of measured pressure to sea-level pressure raised to the power of one over 5.255. The constant is not magic; it follows from the hydrostatic equation and the assumed temperature profile.</p>
+      <p>Real air rarely matches the standard atmosphere. Warm air is less dense, so a given pressure occurs at a higher true altitude. Cold air is denser, so the same pressure occurs lower. This is why an altimeter can read high in hot weather and low in cold weather even when the sensor is perfectly calibrated. Pilots manage the same problem by setting a local sea-level pressure reference, often called QNH, so that the altimeter reads a known elevation on the ground.</p>
+
+      <h3>What the readouts and charts mean</h3>
+      <p>The altitude card shows the barometric estimate and labels its source. GPS altitude is a geometric height derived from satellite positioning and is independent of weather, but its vertical accuracy is usually much worse than its horizontal accuracy, often varying by several metres. The difference between GPS and barometric altitude is therefore a useful diagnostic rather than a verdict: a steady offset may reflect a different reference surface, while a growing difference suggests changing weather or temperature.</p>
+      <p>The pressure history chart shows the raw driver of every altitude change. The altitude history chart shows the interpreted result over ten minutes. A pressure trend arrow summarises whether pressure is rising, falling or steady. Falling pressure often precedes unsettled weather; rising pressure often follows it. Vertical speed is calculated from the rate of pressure change, which makes it very sensitive to sensor noise and to gusty wind at a fixed location.</p>
+      <p>The Set Zero control establishes a relative reference, which is ideal for measuring a climb, a building floor or a drone ascent from a known starting point. Manual sea-level pressure allows you to match a local weather report or a surveyed elevation. Reset Log clears the history without changing the calibration.</p>
+
+      <h3>Practical applications</h3>
+      <p>Hikers use barometric altitude to track ascent and to watch for weather changes. Climbers and ski tourers value the trend as a lightweight forecasting clue. Drone and model-aircraft pilots use relative altitude for height awareness. Building technicians use pressure differences to study stack effect and ventilation. Weather enthusiasts use the pressure trend as one input among many, never as a stand-alone forecast. Teachers use the tool to show the connection between a gas law, the atmosphere and a familiar mountain view.</p>
+
+      <h3>Limitations and calibration</h3>
+      <p>Weather systems can change pressure by one or two hectopascals per hour, which can mimic ten to twenty metres of climbing. Temperature error, sensor resolution, indoor pressure differences and GPS vertical error all contribute. The tool does not receive live QNH updates and is not certified for aviation navigation or legal altitude reporting. Calibrate against a known elevation when possible, set the local sea-level pressure, use relative zero for short climbs and treat the absolute altitude as an estimate. For any decision where height affects safety, use a calibrated altimeter and the appropriate official reference.</p>
+      <p class="fi-guide-cta"><a class="fi-guide-link" href="#altimeter">Open the Barometric Altimeter</a><a class="fi-guide-link ghost" href="/articles/altimeter.html">Read the extended guide</a></p>
+    </article>
+  </section>
+
 </main>
 
 <section class="faq-section" id="faq" aria-labelledby="faq-heading">
@@ -2561,6 +2721,7 @@ html[data-theme="night"] .chart-block {
     <a href="/terms.html">Terms</a>
   </nav>
   <p class="footer-text">&copy; 2026 Field Instruments. Private design.</p>
+  <p class="footer-author">Independently designed, written and maintained by <a href="/about.html#author">Abdul Rehman</a>.</p>
 </footer>
 
 <section class="diagnostics-panel" id="diagnostics-panel" aria-label="Device diagnostics">

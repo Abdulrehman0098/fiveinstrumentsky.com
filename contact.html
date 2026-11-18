@@ -16,13 +16,16 @@
 <meta property="og:locale" content="en_US">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/assets/css/premium.css">
+<link rel="stylesheet" href="/styles/adsense-overhaul.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "ContactPage",
   "name": "Contact Field Instruments",
   "url": "https://fiveinstrumentsky.xyz/contact.html",
-  "isAccessibleForFree": true
+  "description": "Contact Field Instruments about sensor bugs, accuracy questions, feature requests, privacy requests and educational use.",
+  "isAccessibleForFree": true,
+  "publisher": { "@type": "Organization", "name": "Field Instruments", "url": "https://fiveinstrumentsky.xyz/" }
 }
 </script>
 </head>
@@ -59,23 +62,41 @@
       <ul>
         <li><a href="#contact-email">Email</a></li>
         <li><a href="#contact-bug">Bug reports</a></li>
-        <li><a href="#contact-press">Press and partnerships</a></li>
+        <li><a href="#contact-accuracy">Accuracy questions</a></li>
+        <li><a href="#contact-feature">Feature requests</a></li>
         <li><a href="#contact-privacy">Privacy requests</a></li>
+        <li><a href="#contact-press">Press and education</a></li>
+        <li><a href="#contact-time">Response times</a></li>
       </ul>
     </aside>
     <article class="doc-article" id="contact-email">
+      <p>Field Instruments is a small independent project, and email is the most reliable way to reach it. Messages are read by the developer rather than routed through a support queue. Clear, specific reports are easier to act on than general impressions, so the notes below explain what to include.</p>
+
       <h2>Email</h2>
-      <p>Use the contact addresses below. Replies are handled by the project maintainers.</p>
+      <p>Use the address that matches the subject so the message reaches the right place:</p>
       <ul>
-        <li>General: <a href="mailto:hello@fiveinstrumentsky.xyz">hello@fiveinstrumentsky.xyz</a></li>
-        <li>Privacy: <a href="mailto:privacy@fiveinstrumentsky.xyz">privacy@fiveinstrumentsky.xyz</a></li>
+        <li>General questions and corrections: <a href="mailto:hello@fiveinstrumentsky.xyz">hello@fiveinstrumentsky.xyz</a></li>
+        <li>Privacy and data-protection requests: <a href="mailto:privacy@fiveinstrumentsky.xyz">privacy@fiveinstrumentsky.xyz</a></li>
       </ul>
+
       <h2 id="contact-bug">Bug reports</h2>
-      <p>When reporting a sensor or chart issue, include your browser, device model and the behaviour you expected.</p>
-      <h2 id="contact-press">Press and partnerships</h2>
-      <p>Educational institutions and research groups can propose instrument collaborations.</p>
+      <p>For a sensor or chart problem, include the browser name and version, the operating system, the device model, the page or instrument, and the steps that reproduce the issue. Describe what you expected and what happened instead. A screenshot helps, and if the browser console shows an error, include the first red line. Mention whether the page is served over HTTPS, because microphone, motion and location sensors are usually blocked on insecure origins.</p>
+      <p>Also note whether the device actually has the required sensor. Many desktop computers have no barometer or magnetometer, and some browsers expose motion sensors only on certain platforms. If the issue only appears in one theme or at one screen size, say which one. Never include passwords, private keys or unrelated personal documents in a report.</p>
+
+      <h2 id="contact-accuracy">Accuracy and calibration questions</h2>
+      <p>Questions about why a reading differs from a dedicated instrument are welcome. Include the measurement, the conditions, the device and the reference value you are comparing against. We can explain the method, the assumptions and the likely sources of error. We cannot certify a phone as a calibrated instrument or issue a calibration certificate, and we cannot provide medical, legal or safety advice based on a browser reading.</p>
+
+      <h2 id="contact-feature">Feature requests</h2>
+      <p>Ideas for new instruments or charts are read with interest. A useful request explains the physical quantity being measured, which sensor would provide it, and what decision the measurement would support. Requests that can be built entirely in the browser and that respect local-only processing are the easiest to consider. There is no guaranteed roadmap, and not every suggestion can be implemented.</p>
+
       <h2 id="contact-privacy">Privacy requests</h2>
-      <p>Any data-protection request can be sent to the privacy address above.</p>
+      <p>Sensor readings are processed in memory and are not stored on a server, so there is usually no measurement record to retrieve or delete. If your request concerns advertising cookies, Google controls those cookies and provides its own settings and opt-out tools. The <a href="/privacy.html">privacy policy</a> explains both points in detail. Data-protection requests can still be sent to the privacy address and will receive a response.</p>
+
+      <h2 id="contact-press">Press and education</h2>
+      <p>Teachers, lecturers, museums and independent researchers are welcome to use the tools in classes and demonstrations. If you are writing about the project, linking to the relevant guide is preferred over copying large sections. Partnership enquiries should explain the educational goal, the audience and the intended use of the instruments.</p>
+
+      <h2 id="contact-time">Response times</h2>
+      <p>Replies are handled on a best-effort basis, usually within a few business days. There is no guaranteed support window or service-level agreement. Technical corrections that include a reproducible case or a credible source are prioritised, because accuracy matters more than volume. If you do not receive a reply, resend the message with the original subject line rather than starting a new thread.</p>
     </article>
   </div>
 </main>
