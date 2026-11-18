@@ -1,248 +1,522 @@
-/* ============================================================
-   adsense-overhaul.css
-   Additive presentation layer only.
+@supports (overflow: clip) {
+  html, body, .main-content { overflow-x: clip; }
+}
 
-   Loaded AFTER the existing stylesheets. It never touches sensor
-   logic, never changes display rules that JavaScript toggles, and
-   only adds:
-     - a lightweight GPU-composited background (no JS, no WebGL)
-     - deeper glassmorphism on instrument and content containers
-     - micro-interactions and a staggered chart entrance
-     - typography for the on-page instrument guides and author notes
+.main-content {
+  position: relative;
+  z-index: 1;
+}
 
-   Every colour uses existing theme tokens where possible, with
-   literal fallbacks, so daylight and night themes stay readable.
-   ============================================================ */
+body:not(.doc-page)::before,
+body.doc-page::before {
+  content: "";
+  position: fixed;
+  inset: -18% -12% -30%;
+  z-index: -3;
+  pointer-events: none;
+  opacity: 0.30;
+  filter: none;
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.52) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.52) 2px, transparent 2px),
+    radial-gradient(60% 48% at 50% 0%, rgba(0, 240, 255, 0.10), transparent 72%);
+  background-size: 72px 72px, 72px 72px, 100% 100%;
+  transform: perspective(1200px) rotateX(12deg);
+  transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.7) 52%, transparent 88%);
+  mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.7) 52%, transparent 88%);
+  animation: fiGridMove 32s linear infinite;
+  will-change: transform;
+}
 
-/* ------------------------------------------------------------
-   1. Lightweight 3D-feel background
-   Fixed pseudo-element, two soft orbs plus a faint particle grid,
-   moved with translate3d only. No layout work per frame.
-   ------------------------------------------------------------ */
 body::after {
   content: "";
   position: fixed;
   inset: -25%;
   z-index: -2;
   pointer-events: none;
-  opacity: 0.07;
+  opacity: 0.14;
   background-image:
-    radial-gradient(circle at 18% 24%, rgba(0, 240, 255, 0.85), transparent 38%),
-    radial-gradient(circle at 82% 18%, rgba(168, 85, 247, 0.80), transparent 40%),
-    radial-gradient(circle at 68% 82%, rgba(255, 215, 0, 0.62), transparent 38%),
-    radial-gradient(circle at 30% 78%, rgba(0, 120, 255, 0.70), transparent 40%),
-    radial-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1.6px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+    radial-gradient(circle at 18% 24%, rgba(0, 240, 255, 0.78), transparent 36%),
+    radial-gradient(circle at 82% 18%, rgba(168, 85, 247, 0.70), transparent 38%),
+    radial-gradient(circle at 68% 82%, rgba(255, 215, 0, 0.52), transparent 36%),
+    radial-gradient(circle at 30% 78%, rgba(0, 120, 255, 0.62), transparent 38%);
   transform: translate3d(0, 0, 0);
+  animation: fiOrbDrift 38s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
   will-change: transform;
-  animation: fiGridDrift 34s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 
-@keyframes fiGridDrift {
-  from {
-    transform: perspective(900px) translate3d(-1.4%, -1%, 0) rotateX(4deg) scale(1.03);
-  }
-  to {
-    transform: perspective(900px) translate3d(1.6%, 1.6%, 0) rotateX(-3deg) scale(1.07);
-  }
+@keyframes fiGridMove {
+  from { transform: perspective(1200px) rotateX(12deg) translate3d(0, 0, 0); }
+  to { transform: perspective(1200px) rotateX(12deg) translate3d(0, 72px, 0); }
 }
 
-html[data-theme="daylight"] body::after { opacity: 0.045; }
-html[data-theme="night"] body::after { opacity: 0.04; }
+@keyframes fiOrbDrift {
+  from { transform: translate3d(-1.6%, -1.2%, 0) scale(1.02) rotate(-1deg); }
+  to { transform: translate3d(1.8%, 1.8%, 0) scale(1.09) rotate(1.5deg); }
+}
 
-/* ------------------------------------------------------------
-   2. Glassmorphism on the tool and content containers
-   Background comes from the theme tokens so daylight stays light.
-   Only the blur depth, border and shadow are strengthened.
-   ------------------------------------------------------------ */
-.instrument-panel,
-.stars-controls,
-.chart-block,
+@keyframes fiPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+body:not(.doc-page)::before,
+body:not(.doc-page)::after,
+body.doc-page::before,
+body.doc-page::after {
+  z-index: 0;
+}
+
+body.doc-page .page-main,
+body.doc-page .page-footer {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-theme="daylight"] body:not(.doc-page)::before,
+html[data-theme="daylight"] body.doc-page::before { opacity: 0.14; }
+html[data-theme="night"] body:not(.doc-page)::before,
+html[data-theme="night"] body.doc-page::before { opacity: 0.09; }
+html[data-theme="daylight"] body::after { opacity: 0.06; }
+html[data-theme="night"] body::after { opacity: 0.05; }
+
+.instrument-panel {
+  position: relative;
+  transform: perspective(1800px) rotateX(0.55deg) rotateY(0.4deg);
+  transform-style: preserve-3d;
+  transform-origin: 50% 0%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.012) 34%, rgba(6, 10, 22, 0.6)),
+    var(--glass-bg-strong, rgba(12, 18, 34, 0.55));
+  -webkit-backdrop-filter: blur(25px) saturate(1.55);
+  backdrop-filter: blur(25px) saturate(1.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+    inset 0 0 42px rgba(0, 240, 255, 0.045),
+    0 34px 80px -24px rgba(0, 0, 0, 0.8),
+    0 12px 28px -12px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.035);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.6s;
+}
+
 .readout-card,
+.chart-block,
+.stars-controls,
 .vibration-axis,
 .magnetic-axis,
 .faq-item,
+.fi-topic,
+.kb-card,
+.contact-card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.012) 40%, rgba(8, 12, 26, 0.46));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+    0 16px 34px -20px rgba(0, 0, 0, 0.75);
+  -webkit-backdrop-filter: blur(10px) saturate(1.35);
+  backdrop-filter: blur(10px) saturate(1.35);
+}
+
+.fi-guide,
+.fi-docs-sidebar,
 .doc-article,
 .doc-toc,
 .page-hero,
-.kb-card {
-  background: var(--glass-bg-strong, var(--premium-glass-bg, rgba(16, 21, 38, 0.62)));
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  backdrop-filter: blur(20px) saturate(1.4);
-  border: 1px solid var(--glass-border, var(--premium-glass-border, rgba(255, 255, 255, 0.10)));
+.author-card {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 36%, rgba(6, 10, 22, 0.58)),
+    var(--glass-bg-strong, rgba(12, 18, 34, 0.5));
+  -webkit-backdrop-filter: blur(25px) saturate(1.5);
+  backdrop-filter: blur(25px) saturate(1.5);
   box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 30px 70px -26px rgba(0, 0, 0, 0.82),
+    0 0 40px rgba(0, 240, 255, 0.04);
 }
 
-/* Keep the existing neon edge on the instrument shell, but soften it. */
-.instrument-panel {
-  box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(0, 240, 255, 0.05);
-}
-
-/* ------------------------------------------------------------
-   3. Micro-interactions
-   Hover lift is limited to devices with a real pointer so the
-   existing mobile reset in responsive.css keeps working.
-   ------------------------------------------------------------ */
 .primary-btn,
 .secondary-btn,
 .toggle-btn,
 .icon-btn,
 .reset-inline,
-.tab-btn,
 .fi-guide-link {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 46%, rgba(0, 0, 0, 0.22));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.32),
+    0 8px 18px -8px rgba(0, 0, 0, 0.75);
   transition:
-    transform 0.22s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-    box-shadow 0.22s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-    background-color 0.22s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-    border-color 0.22s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
-    color 0.22s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
+    transform 0.14s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.tab-btn {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0.16));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.24);
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.tab-btn.active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -2px 0 rgba(255, 215, 0, 0.9),
+    0 0 22px rgba(255, 215, 0, 0.18);
+}
+
+.primary-btn:hover,
+.secondary-btn:hover,
+.toggle-btn:hover,
+.icon-btn:hover,
+.reset-inline:hover,
+.fi-guide-link:hover,
+.tab-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 12px 24px -10px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(0, 240, 255, 0.10);
+}
+
+.primary-btn:active,
+.secondary-btn:active,
+.toggle-btn:active,
+.icon-btn:active,
+.reset-inline:active,
+.fi-guide-link:active,
+.tab-btn:active {
+  transform: translateY(2px);
+  filter: brightness(0.96);
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .primary-btn:hover,
-  .secondary-btn:hover,
-  .toggle-btn:hover,
-  .icon-btn:hover,
-  .fi-guide-link:hover {
-    transform: translateY(-2px);
+  .readout-card:hover,
+  .chart-block:hover,
+  .fi-topic:hover,
+  .kb-card:hover,
+  .faq-item:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.22);
     box-shadow:
-      0 10px 26px rgba(0, 240, 255, 0.20),
-      0 0 20px rgba(0, 240, 255, 0.10);
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+      0 26px 48px -24px rgba(0, 0, 0, 0.85),
+      0 0 26px rgba(0, 240, 255, 0.07);
   }
 }
 
-/* Active tab glow, theme-aware. */
-.tab-btn.active {
-  box-shadow:
-    inset 0 0 12px rgba(0, 240, 255, 0.20),
-    0 0 22px rgba(0, 240, 255, 0.16);
-}
-html[data-theme="night"] .tab-btn.active {
-  box-shadow:
-    inset 0 0 12px rgba(255, 70, 70, 0.24),
-    0 0 22px rgba(255, 70, 70, 0.16);
-}
-html[data-theme="daylight"] .tab-btn.active {
-  box-shadow:
-    inset 0 0 12px rgba(0, 120, 160, 0.18),
-    0 0 18px rgba(0, 120, 160, 0.12);
-}
-
-/* ------------------------------------------------------------
-   4. Staggered chart entrance
-   Applied to chart and readout cards inside the active panel and
-   to the guide blocks. Transform-only, so canvas rendering is not
-   measured or interrupted.
-   ------------------------------------------------------------ */
 @keyframes fiGuidedFadeUp {
-  from { opacity: 0; transform: translate3d(0, 18px, 0); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 .instrument-panel.active .chart-block,
-.instrument-panel.active .readout-card,
-.fi-guide {
+.instrument-panel.active .readout-card {
   animation: fiGuidedFadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .instrument-panel.active .chart-block:nth-child(1) { animation-delay: 0.04s; }
-.instrument-panel.active .chart-block:nth-child(2) { animation-delay: 0.11s; }
-.instrument-panel.active .chart-block:nth-child(3) { animation-delay: 0.18s; }
+.instrument-panel.active .chart-block:nth-child(2) { animation-delay: 0.10s; }
+.instrument-panel.active .chart-block:nth-child(3) { animation-delay: 0.16s; }
 .instrument-panel.active .readout-card:nth-child(2) { animation-delay: 0.03s; }
 .instrument-panel.active .readout-card:nth-child(3) { animation-delay: 0.06s; }
 .instrument-panel.active .readout-card:nth-child(4) { animation-delay: 0.09s; }
 .instrument-panel.active .readout-card:nth-child(5) { animation-delay: 0.12s; }
 .instrument-panel.active .readout-card:nth-child(6) { animation-delay: 0.15s; }
 
-.fi-guide:nth-of-type(2) { animation-delay: 0.05s; }
-.fi-guide:nth-of-type(3) { animation-delay: 0.10s; }
-.fi-guide:nth-of-type(4) { animation-delay: 0.15s; }
-.fi-guide:nth-of-type(5) { animation-delay: 0.20s; }
-
-/* ------------------------------------------------------------
-   5. On-page instrument guides (the AdSense publisher content)
-   ------------------------------------------------------------ */
 .fi-guides {
   position: relative;
   z-index: 1;
-  max-width: var(--max-w, 1280px);
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 18px 16px 56px;
+  padding: 24px 16px 72px;
 }
 
 .fi-guides-head {
-  padding: 28px 4px 22px;
+  padding: 22px 4px 28px;
+}
+
+.fi-guides-head-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
 }
 
 .fi-eyebrow {
-  margin: 0 0 10px;
-  font-family: var(--font-sans, Inter, system-ui, sans-serif);
-  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--cyan, #00f0ff);
 }
 
+.fi-eyebrow-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 14px currentColor;
+  animation: fiPulse 2.8s ease-in-out infinite;
+}
+
 .fi-guides-head h2 {
   margin: 0 0 12px;
   font-family: var(--font-sans, Inter, system-ui, sans-serif);
-  font-size: clamp(1.5rem, 3.2vw, 2.15rem);
-  line-height: 1.15;
-  color: var(--gold, #ffd700);
-  letter-spacing: -0.02em;
+  font-size: clamp(1.8rem, 3.6vw, 2.7rem);
+  font-weight: 750;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--ink, #f4f7ff);
 }
 
 .fi-lede {
   margin: 0;
-  max-width: 78ch;
-  color: var(--ink-dim, #b8c2dd);
+  max-width: 72ch;
+  color: var(--ink-dim, #b9c4df);
   font-size: 1.02rem;
   line-height: 1.75;
 }
 
-.fi-guide-nav {
+.fi-guides-stats {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
   gap: 10px;
-  margin-top: 22px;
 }
 
-.fi-guide-nav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 7px 15px;
-  border-radius: 999px;
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
-  background: var(--glass-bg, rgba(255, 255, 255, 0.05));
-  color: var(--cyan, #00f0ff);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition: background-color 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+.fi-guides-stats span {
+  min-width: 82px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint, #7f8ab0);
 }
-.fi-guide-nav a:hover {
+
+.fi-guides-stats strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--gold, #ffd700);
+}
+
+.fi-docs {
+  display: grid;
+  grid-template-columns: 286px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+
+.fi-docs-sidebar {
+  position: sticky;
+  top: 128px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 18px;
+}
+
+.fi-docs-sidebar-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 0 4px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint, #8b96bb);
+}
+
+.fi-docs-sidebar-title span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 240, 255, 0.24);
+  background: rgba(0, 240, 255, 0.07);
+  color: var(--cyan, #00f0ff);
+  letter-spacing: 0.08em;
+}
+
+.fi-docs-nav {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+}
+
+.fi-docs-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.fi-docs-nav-link:hover,
+.fi-docs-nav-link.is-active {
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.10), rgba(0, 240, 255, 0.015));
+  border-color: rgba(0, 240, 255, 0.24);
+  transform: translateX(2px);
+}
+
+.fi-docs-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 11px;
+  border: 1px solid rgba(0, 240, 255, 0.22);
+  background: linear-gradient(160deg, rgba(0, 240, 255, 0.15), rgba(0, 240, 255, 0.03));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 6px 14px -8px rgba(0, 240, 255, 0.5);
+  color: var(--cyan, #00f0ff);
+}
+
+.fi-docs-icon svg { width: 20px; height: 20px; }
+
+.fi-docs-nav-copy { min-width: 0; }
+
+.fi-docs-nav-copy strong {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--ink, #e9eefc);
+}
+
+.fi-docs-nav-copy small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint, #7f8ab0);
+}
+
+.fi-docs-kb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 11px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(0, 240, 255, 0.22);
+  background: rgba(0, 240, 255, 0.05);
+  color: var(--cyan, #00f0ff);
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.fi-docs-kb:hover {
   background: rgba(0, 240, 255, 0.10);
-  border-color: rgba(0, 240, 255, 0.35);
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.fi-docs-main {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
 .fi-guide {
-  margin: 0 0 22px;
-  padding: clamp(24px, 3.4vw, 44px);
-  border-radius: 20px;
-  scroll-margin-top: 96px;
+  position: relative;
+  margin: 0;
+  padding: clamp(22px, 2.8vw, 36px);
+  border-radius: 22px;
+  overflow: hidden;
+  scroll-margin-top: 128px;
 }
 
+.fi-guide::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.55), rgba(255, 215, 0, 0.35), transparent);
+}
+
+.fi-guide-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fi-guide-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 215, 0, 0.24);
+  background: linear-gradient(160deg, rgba(255, 215, 0, 0.16), rgba(255, 215, 0, 0.03));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 14px 28px -14px rgba(255, 215, 0, 0.4);
+  color: var(--gold, #ffd700);
+}
+
+.fi-guide-icon svg { width: 28px; height: 28px; }
+
+.fi-guide-head-copy { min-width: 0; }
+
 .fi-guide-kicker {
-  margin: 0 0 10px;
+  margin: 0 0 7px;
   font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -250,39 +524,109 @@ html[data-theme="daylight"] .tab-btn.active {
 }
 
 .fi-guide h2 {
+  margin: 0;
+  font-family: var(--font-sans, Inter, system-ui, sans-serif);
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ink, #f4f7ff);
+}
+
+.fi-guide-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 10px 0 0;
+}
+
+.fi-guide-meta span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.6rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint, #8b96bb);
+}
+
+.fi-guide-intro {
+  position: relative;
   margin: 0 0 18px;
-  font-family: var(--font-sans, Inter, system-ui, sans-serif);
-  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
-  line-height: 1.22;
-  color: var(--gold, #ffd700);
-  letter-spacing: -0.01em;
+  padding: 16px 18px 16px 20px;
+  border-left: 2px solid rgba(0, 240, 255, 0.7);
+  border-radius: 0 14px 14px 0;
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.075), rgba(0, 240, 255, 0.012) 58%, transparent);
 }
 
-.fi-guide h3 {
-  margin: 1.8em 0 0.55em;
-  font-family: var(--font-sans, Inter, system-ui, sans-serif);
-  font-size: 1.06rem;
-  line-height: 1.35;
-  color: var(--cyan, #00f0ff);
-  letter-spacing: 0.005em;
-}
-
-.fi-guide p {
-  margin: 0 0 1em;
-  max-width: 82ch;
-  color: var(--ink-dim, #c7d0e6);
-  font-size: 0.98rem;
+.fi-guide-intro p {
+  margin: 0 0 0.72em;
+  font-size: 1.01rem;
   line-height: 1.78;
+  color: var(--ink-dim, #c8d2ea);
 }
 
-.fi-guide strong { color: var(--ink, #e9eefc); }
+.fi-guide-intro p:last-child { margin-bottom: 0; }
+
+.fi-topic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.fi-topic {
+  position: relative;
+  padding: 18px 18px 6px;
+  border-radius: 14px;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.fi-topic h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 0.65em;
+  font-family: var(--font-sans, Inter, system-ui, sans-serif);
+  font-size: 0.76rem;
+  font-weight: 750;
+  line-height: 1.45;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan, #00f0ff);
+}
+
+.fi-topic h3::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+}
+
+.fi-topic p {
+  margin: 0 0 0.85em;
+  font-size: 0.93rem;
+  line-height: 1.76;
+  color: var(--ink-dim, #c3cde5);
+}
+
+.fi-topic strong { color: var(--ink, #eef2ff); }
+
+.fi-topic:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 .fi-guide-cta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin-top: 22px;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .fi-guide-link {
@@ -290,62 +634,215 @@ html[data-theme="daylight"] .tab-btn.active {
   align-items: center;
   min-height: 42px;
   padding: 9px 18px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 240, 255, 0.45);
-  background: rgba(0, 240, 255, 0.10);
+  border-radius: 11px;
+  border: 1px solid rgba(0, 240, 255, 0.42);
+  background-color: rgba(0, 240, 255, 0.10);
+  background-image: linear-gradient(180deg, rgba(0, 240, 255, 0.22), rgba(0, 240, 255, 0.06));
   color: var(--cyan, #00f0ff);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-decoration: none;
 }
 
 .fi-guide-link.ghost {
-  border-color: var(--glass-border, rgba(255, 255, 255, 0.16));
-  background: transparent;
+  border-color: rgba(255, 255, 255, 0.16);
+  background-color: transparent;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025));
   color: var(--ink, #e8ecf4);
 }
 
-/* Author / E-E-A-T note used in the footer and on the About page. */
+.doc-article p,
+.doc-article li,
+.kb-card p,
+.doc-toc li,
+.page-hero .lede {
+  line-height: 1.78;
+}
+
+.doc-article h2,
+.doc-article h3,
+.kb-card h2,
+.kb-card h3 {
+  color: var(--ink, #f4f7ff);
+}
+
 .footer-author {
   margin: 10px 0 0;
   color: var(--ink-dim, #8892b8);
   font-size: 0.78rem;
   line-height: 1.6;
 }
+
 .footer-author a { color: var(--cyan, #00f0ff); }
 
 .author-card {
   margin: 26px 0 0;
   padding: 20px 22px;
   border-radius: 14px;
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
   background: rgba(0, 240, 255, 0.05);
 }
+
 .author-card p { margin: 0 0 0.7em; }
 .author-card p:last-child { margin-bottom: 0; }
 
-/* Slightly tighter guide padding on small screens. */
-@media (max-width: 639px) {
-  .fi-guides { padding-left: 12px; padding-right: 12px; }
-  .fi-guide { border-radius: 16px; }
-  .fi-guide p { font-size: 0.95rem; }
+html[data-theme="daylight"] .instrument-panel {
+  border-color: rgba(30, 45, 90, 0.16);
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(238, 244, 255, 0.74)),
+    rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgba(30, 45, 90, 0.08),
+    0 34px 80px -28px rgba(30, 45, 90, 0.45),
+    0 12px 28px -16px rgba(30, 45, 90, 0.28);
 }
 
-/* ------------------------------------------------------------
-   6. Accessibility: honour reduced motion
-   ------------------------------------------------------------ */
+html[data-theme="daylight"] .readout-card,
+html[data-theme="daylight"] .chart-block,
+html[data-theme="daylight"] .stars-controls,
+html[data-theme="daylight"] .vibration-axis,
+html[data-theme="daylight"] .magnetic-axis,
+html[data-theme="daylight"] .faq-item,
+html[data-theme="daylight"] .fi-topic,
+html[data-theme="daylight"] .kb-card,
+html[data-theme="daylight"] .contact-card,
+html[data-theme="daylight"] .fi-guide,
+html[data-theme="daylight"] .fi-docs-sidebar,
+html[data-theme="daylight"] .doc-article,
+html[data-theme="daylight"] .doc-toc,
+html[data-theme="daylight"] .page-hero,
+html[data-theme="daylight"] .author-card {
+  border-color: rgba(30, 45, 90, 0.14);
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.9), rgba(240, 245, 255, 0.72)),
+    rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgba(30, 45, 90, 0.06),
+    0 24px 54px -28px rgba(30, 45, 90, 0.38);
+}
+
+html[data-theme="daylight"] .fi-guides-head h2,
+html[data-theme="daylight"] .fi-guide h2,
+html[data-theme="daylight"] .fi-docs-nav-copy strong,
+html[data-theme="daylight"] .doc-article h2,
+html[data-theme="daylight"] .doc-article h3,
+html[data-theme="daylight"] .kb-card h2,
+html[data-theme="daylight"] .kb-card h3 {
+  color: #0a1733;
+}
+
+html[data-theme="daylight"] .fi-lede,
+html[data-theme="daylight"] .fi-guide-intro p,
+html[data-theme="daylight"] .fi-topic p,
+html[data-theme="daylight"] .doc-article p,
+html[data-theme="daylight"] .doc-article li,
+html[data-theme="daylight"] .kb-card p {
+  color: #2b3a58;
+}
+
+html[data-theme="daylight"] .fi-topic h3,
+html[data-theme="daylight"] .fi-eyebrow,
+html[data-theme="daylight"] .fi-guide-kicker {
+  color: #007a8a;
+}
+
+html[data-theme="daylight"] .fi-docs-icon {
+  border-color: rgba(0, 150, 180, 0.22);
+  background: linear-gradient(160deg, rgba(0, 150, 180, 0.14), rgba(0, 150, 180, 0.03));
+  color: #007a8a;
+}
+
+html[data-theme="daylight"] .fi-docs-nav-link:hover,
+html[data-theme="daylight"] .fi-docs-nav-link.is-active {
+  background: rgba(0, 150, 180, 0.08);
+  border-color: rgba(0, 150, 180, 0.24);
+}
+
+html[data-theme="night"] .fi-eyebrow,
+html[data-theme="night"] .fi-guide-kicker,
+html[data-theme="night"] .fi-topic h3 {
+  color: #ff7a7a;
+}
+
+html[data-theme="night"] .fi-eyebrow-dot,
+html[data-theme="night"] .fi-topic h3::before {
+  background: #ff5a5a;
+  box-shadow: 0 0 14px #ff5a5a;
+}
+
+html[data-theme="night"] .fi-docs-icon {
+  color: #ff7a7a;
+  border-color: rgba(255, 90, 90, 0.24);
+  background: linear-gradient(160deg, rgba(255, 90, 90, 0.16), rgba(255, 90, 90, 0.03));
+}
+
+@media (max-width: 1023px) {
+  .fi-docs { grid-template-columns: minmax(0, 1fr); }
+  .fi-docs-sidebar {
+    position: relative;
+    top: auto;
+    width: 100%;
+    max-width: 100%;
+  }
+  .fi-docs-nav {
+    width: 100%;
+    max-width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .fi-docs-nav::-webkit-scrollbar { display: none; }
+  .fi-docs-nav-link { flex: 0 0 auto; min-width: 180px; }
+  .fi-docs-kb { display: none; }
+}
+
+@media (max-width: 767px) {
+  .fi-guides-head-row { flex-direction: column; align-items: flex-start; }
+  .fi-guides-stats { width: 100%; }
+  .fi-guides-stats span { flex: 1; }
+  .fi-topic-grid { grid-template-columns: 1fr; }
+  .fi-topic:last-child:nth-child(odd) { grid-column: auto; }
+  .fi-guide-head { flex-direction: column; }
+  .fi-guide-icon { width: 48px; height: 48px; border-radius: 14px; }
+  .instrument-panel {
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+  }
+}
+
+@media (max-width: 479px) {
+  .fi-guides { padding-left: 12px; padding-right: 12px; }
+  .fi-guide { padding: 18px 16px; border-radius: 18px; }
+  .fi-guide-intro { padding: 14px 14px 14px 16px; }
+  .fi-topic { padding: 15px 15px 4px; }
+  .fi-guide-meta span { font-size: 0.56rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  body::after { animation: none !important; }
+  body:not(.doc-page)::before,
+  body.doc-page::before,
+  body::after,
+  .fi-eyebrow-dot,
   .instrument-panel.active .chart-block,
-  .instrument-panel.active .readout-card,
-  .fi-guide {
+  .instrument-panel.active .readout-card {
     animation: none !important;
   }
   .primary-btn:hover,
   .secondary-btn:hover,
   .toggle-btn:hover,
   .icon-btn:hover,
-  .fi-guide-link:hover {
+  .reset-inline:hover,
+  .fi-guide-link:hover,
+  .tab-btn:hover,
+  .readout-card:hover,
+  .chart-block:hover,
+  .fi-topic:hover,
+  .kb-card:hover,
+  .faq-item:hover {
     transform: none !important;
   }
 }
